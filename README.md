@@ -315,8 +315,8 @@ MedicoScope provides tailored interfaces for each stakeholder in the care contin
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/atharva-awade/Team-Synora-MedicoScope-Aegis.git
-cd Team-Synora-MedicoScope-Aegis
+git clone https://github.com/college-hack24-nov26/hack-team-synora.git
+cd hack-team-synora
 ```
 
 ### 2. Configure Client Dependencies
