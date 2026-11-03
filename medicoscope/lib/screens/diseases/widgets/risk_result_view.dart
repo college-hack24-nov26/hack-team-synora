@@ -6,6 +6,7 @@ import 'package:medicoscope/core/constants/disease_constants.dart';
 import 'package:medicoscope/core/theme/app_theme.dart';
 import 'package:medicoscope/core/theme/theme_provider.dart';
 import 'package:medicoscope/core/widgets/glass_card.dart';
+import 'package:medicoscope/core/providers/auth_provider.dart';
 import 'package:medicoscope/models/disease_risk_result.dart';
 import 'package:medicoscope/models/detection_record.dart';
 import 'package:medicoscope/models/quality_gate_result.dart';
@@ -530,25 +531,34 @@ class RiskResultView extends StatelessWidget {
                         Expanded(
                           child: OutlinedButton.icon(
                             onPressed: () {
+                              final auth = Provider.of<AuthProvider>(ctx, listen: false);
+                              final realPatientName = (auth.user?.name != null && auth.user!.name.trim().isNotEmpty)
+                                  ? auth.user!.name.trim()
+                                  : 'Kunal Ramdas Jadhav';
+                              final patientCode = auth.user?.uniqueCode ?? auth.user?.id ?? 'MS-PAT-2026';
+                              final scanTime = result.timestamp;
+
                               final dummyRecord = DetectionRecord(
-                                id: 'REC-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
+                                id: 'REC-${scanTime.millisecondsSinceEpoch.toString().substring(5)}',
                                 className: result.headline,
                                 confidence: result.score,
                                 category: result.disease.name,
-                                performedBy: 'Patient Self-Scan',
-                                performedByName: 'Patient Direct Encounter',
+                                performedBy: patientCode,
+                                performedByName: realPatientName,
+                                performedByRole: 'Patient Direct Encounter',
                                 description: result.headline,
+                                timestamp: scanTime,
                               );
                               CertifiedReportPdfService.generateAndSave(
                                 record: dummyRecord,
-                                patientName: 'Verified Patient',
+                                patientName: realPatientName,
                                 qualityResult: qg,
                                 doctorNotes: result.recommendations.join('\n• '),
                               );
                               ScaffoldMessenger.of(ctx).showSnackBar(
-                                const SnackBar(
-                                  content: Text('📄 Patient Health Summary PDF saved to Downloads & opened!'),
-                                  backgroundColor: Color(0xFF2ECC71),
+                                SnackBar(
+                                  content: Text('📄 Certified PDF generated for $realPatientName'),
+                                  backgroundColor: const Color(0xFF2ECC71),
                                 ),
                               );
                             },
@@ -565,20 +575,29 @@ class RiskResultView extends StatelessWidget {
                         Expanded(
                           child: ElevatedButton.icon(
                             onPressed: () {
+                              final auth = Provider.of<AuthProvider>(ctx, listen: false);
+                              final realPatientName = (auth.user?.name != null && auth.user!.name.trim().isNotEmpty)
+                                  ? auth.user!.name.trim()
+                                  : 'Kunal Ramdas Jadhav';
+                              final patientCode = auth.user?.uniqueCode ?? auth.user?.id ?? 'MS-PAT-2026';
+                              final scanTime = result.timestamp;
+
                               final dummyRecord = DetectionRecord(
-                                id: 'REC-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
+                                id: 'REC-${scanTime.millisecondsSinceEpoch.toString().substring(5)}',
                                 className: result.headline,
                                 confidence: result.score,
                                 category: result.disease.name,
-                                performedBy: 'Patient Self-Scan',
-                                performedByName: 'Patient Direct Encounter',
+                                performedBy: patientCode,
+                                performedByName: realPatientName,
+                                performedByRole: 'Patient Direct Encounter',
                                 description: result.headline,
+                                timestamp: scanTime,
                               );
                               QualityGateSheet.show(
                                 ctx,
                                 result: qg,
                                 record: dummyRecord,
-                                patientName: 'Patient Direct Encounter',
+                                patientName: realPatientName,
                                 doctorNotes: result.recommendations.join('\n• '),
                                 title: 'Patient Quality Gate Audit',
                               );

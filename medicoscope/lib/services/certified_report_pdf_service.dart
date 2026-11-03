@@ -100,19 +100,25 @@ class CertifiedReportPdfService {
     r1.cells[0].value = 'Patient Name:';
     r1.cells[1].value = _cleanAscii(patientName);
     r1.cells[2].value = 'Report ID:';
-    r1.cells[3].value = record.id?.substring(0, 8).toUpperCase() ?? 'MS-ENC-2026';
+    r1.cells[3].value = record.id?.substring(0, 12).toUpperCase() ?? 'MS-ENC-2026';
 
     final r2 = metaTable.rows.add();
     r2.cells[0].value = 'Specialty:';
     r2.cells[1].value = record.category.toUpperCase();
-    r2.cells[2].value = 'Date / Time:';
-    r2.cells[3].value = record.timestamp.toLocal().toString().substring(0, 16);
+    r2.cells[2].value = 'Encounter Time:';
+    r2.cells[3].value = record.timestamp.toLocal().toString().substring(0, 19);
 
     final r3 = metaTable.rows.add();
     r3.cells[0].value = 'Performed By:';
     r3.cells[1].value = _cleanAscii(record.performedByName ?? 'Clinical Care Team');
-    r3.cells[2].value = 'Role / License:';
+    r3.cells[2].value = 'Role / Mode:';
     r3.cells[3].value = _cleanAscii(record.performedByRole ?? 'Medical Officer');
+
+    final r4 = metaTable.rows.add();
+    r4.cells[0].value = 'Patient Code:';
+    r4.cells[1].value = _cleanAscii(record.patientId ?? record.performedBy);
+    r4.cells[2].value = 'Certified At:';
+    r4.cells[3].value = qualityResult.evaluatedAt.toLocal().toString().substring(0, 19);
 
     metaTable.style = PdfGridStyle(
       font: bodyFont,
