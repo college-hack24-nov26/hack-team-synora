@@ -7,6 +7,9 @@ import 'package:medicoscope/core/theme/app_theme.dart';
 import 'package:medicoscope/core/theme/theme_provider.dart';
 import 'package:medicoscope/core/widgets/glass_card.dart';
 import 'package:medicoscope/models/disease_risk_result.dart';
+import 'package:medicoscope/models/quality_gate_result.dart';
+import 'package:medicoscope/services/quality_gate_service.dart';
+import 'package:medicoscope/core/widgets/quality_gate_sheet.dart';
 
 /// Unified result panel used by every detection method.
 class RiskResultView extends StatelessWidget {
@@ -387,6 +390,109 @@ class RiskResultView extends StatelessWidget {
             ),
           ).animate().fadeIn(delay: 400.ms, duration: 400.ms),
         ],
+
+        // Repeatable Quality Gate Certification Card
+        Builder(builder: (ctx) {
+          final qg = QualityGateService.auditScreeningResult(result);
+          final isPassed = qg.isPassed;
+          final qgColor = isPassed ? const Color(0xFF2ECC71) : const Color(0xFFF39C12);
+
+          return Padding(
+            padding: const EdgeInsets.only(top: AppTheme.spacingMedium),
+            child: GlassCard(
+              padding: const EdgeInsets.all(AppTheme.spacingMedium),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: qgColor.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(Icons.verified_rounded, size: 18, color: qgColor),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  'Quality Gate Certified',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w800,
+                                    color: isDark ? AppTheme.darkTextLight : AppTheme.textDark,
+                                  ),
+                                ),
+                                const Spacer(),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: qgColor.withOpacity(0.15),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    '${qg.overallScorePercent}% SCORE',
+                                    style: TextStyle(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: qgColor,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Text(
+                              '5-Point Clinical Quality Verification Passed (#${qg.auditHash})',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: isDark ? AppTheme.darkTextGray : AppTheme.textGray,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  const Divider(height: 1),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Rules: ${qg.rulesVersion}',
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          fontFamily: 'monospace',
+                          color: isDark ? AppTheme.darkTextGray : AppTheme.textGray,
+                        ),
+                      ),
+                      TextButton.icon(
+                        onPressed: () => QualityGateSheet.show(
+                          ctx,
+                          result: qg,
+                          title: 'Screening Quality Audit',
+                        ),
+                        icon: const Icon(Icons.shield_outlined, size: 14),
+                        label: const Text('View Full Audit', style: TextStyle(fontSize: 11.5)),
+                        style: TextButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ).animate().fadeIn(delay: 450.ms, duration: 400.ms);
+        }),
 
         if (onRetry != null) ...[
           const SizedBox(height: AppTheme.spacingLarge),

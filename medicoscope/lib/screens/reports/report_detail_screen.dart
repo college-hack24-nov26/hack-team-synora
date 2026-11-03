@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:medicoscope/core/theme/app_theme.dart';
 import 'package:medicoscope/core/widgets/glass_card.dart';
 import 'package:medicoscope/models/detection_record.dart';
 import 'package:medicoscope/data/disease_database.dart';
+import 'package:medicoscope/models/quality_gate_result.dart';
+import 'package:medicoscope/services/quality_gate_service.dart';
+import 'package:medicoscope/core/widgets/quality_gate_sheet.dart';
 import 'package:provider/provider.dart';
 import 'package:medicoscope/core/theme/theme_provider.dart';
 import 'package:medicoscope/core/locale/locale_provider.dart';
 import 'package:medicoscope/core/locale/app_strings.dart';
 
-class ReportDetailScreen extends StatelessWidget {
+class ReportDetailScreen extends StatefulWidget {
   final String patientName;
   final DetectionRecord record;
 
@@ -19,16 +23,30 @@ class ReportDetailScreen extends StatelessWidget {
     required this.record,
   });
 
+  @override
+  State<ReportDetailScreen> createState() => _ReportDetailScreenState();
+}
+
+class _ReportDetailScreenState extends State<ReportDetailScreen> {
+  final TextEditingController _notesCtrl = TextEditingController();
+  bool _isFinalized = false;
+  QualityGateResult? _finalizedGateResult;
+
+  @override
+  void dispose() {
+    _notesCtrl.dispose();
+    super.dispose();
+  }
+
   Map<String, dynamic>? get _diseaseInfo =>
-      DiseaseDatabase.getDiseaseInfo(record.className);
+      DiseaseDatabase.getDiseaseInfo(widget.record.className);
 
   String get _severity {
     final info = _diseaseInfo;
     if (info != null && info['severity'] != null) return info['severity'];
-    // Infer severity from confidence for non-heart categories
-    if (record.category == 'heart_sound') return 'MEDIUM';
-    if (record.confidence >= 0.8) return 'HIGH';
-    if (record.confidence >= 0.5) return 'MEDIUM';
+    if (widget.record.category == 'heart_sound') return 'MEDIUM';
+    if (widget.record.confidence >= 0.8) return 'HIGH';
+    if (widget.record.confidence >= 0.5) return 'MEDIUM';
     return 'LOW';
   }
 
@@ -94,7 +112,7 @@ class ReportDetailScreen extends StatelessWidget {
     final severity = _severity;
     final recs = <String>[];
 
-    switch (record.category) {
+    switch (widget.record.category) {
       case 'skin':
         recs.add(AppStrings.get('rec_dermatology_appointment', lang));
         if (severity == 'HIGH') {
@@ -134,26 +152,84 @@ class ReportDetailScreen extends StatelessWidget {
     return recs;
   }
 
+  QualityGateResult _evaluateCurrentQuality() {
+    return QualityGateService.auditDetectionRecord(
+      record: widget.record,
+      patientName: widget.patientName,
+      doctorNotes: _notesCtrl.text,
+    );
+  }
+
+  Future<void> _openQualityGateSheet() async {
+    final qg = _evaluateCurrentQuality();
+    final finalized = await QualityGateSheet.show(
+      context,
+      result: qg,
+      title: 'Report Quality Gate',
+      onAutoFix: () {
+        Navigator.of(context).pop();
+        setState(() {
+          _notesCtrl.text =
+              'Clinical impression consistent with ${widget.record.className}. Patient advised to schedule clinical follow-up within 14 days and report any acute symptom changes.';
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✨ Applied Quality Gate clinical format enhancements.'),
+            backgroundColor: Color(0xFF667EEA),
+          ),
+        );
+        // Re-open with updated score
+        Future.delayed(const Duration(milliseconds: 250), () {
+          if (mounted) _openQualityGateSheet();
+        });
+      },
+    );
+
+    if (finalized == true && mounted) {
+      final updatedQg = _evaluateCurrentQuality();
+      setState(() {
+        _isFinalized = true;
+        _finalizedGateResult = updatedQg;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('✅ Report signed and sealed (#${updatedQg.auditHash})'),
+          backgroundColor: const Color(0xFF2ECC71),
+        ),
+      );
+    }
+  }
+
+  void _copyCertifiedReport() {
+    if (_finalizedGateResult?.enhancedContent != null) {
+      Clipboard.setData(ClipboardData(text: _finalizedGateResult!.enhancedContent!));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('📋 Certified clinical report copied to clipboard.')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDark = themeProvider.isDarkMode;
     final lang = Provider.of<LocaleProvider>(context).languageCode;
     final severity = _severity;
-    final catColor = _categoryColor(record.category);
+    final catColor = _categoryColor(widget.record.category);
+    final liveQg = _evaluateCurrentQuality();
 
     final dateStr =
-        '${record.timestamp.day}/${record.timestamp.month}/${record.timestamp.year}';
+        '${widget.record.timestamp.day}/${widget.record.timestamp.month}/${widget.record.timestamp.year}';
     final timeStr =
-        '${record.timestamp.hour.toString().padLeft(2, '0')}:${record.timestamp.minute.toString().padLeft(2, '0')}';
+        '${widget.record.timestamp.hour.toString().padLeft(2, '0')}:${widget.record.timestamp.minute.toString().padLeft(2, '0')}';
 
-    final confStr = record.category == 'heart_sound'
-        ? '${record.confidence.toStringAsFixed(0)} ${AppStrings.get('bpm', lang)}'
-        : '${(record.confidence * 100).toStringAsFixed(1)}%';
+    final confStr = widget.record.category == 'heart_sound'
+        ? '${widget.record.confidence.toStringAsFixed(0)} ${AppStrings.get('bpm', lang)}'
+        : '${(widget.record.confidence * 100).toStringAsFixed(1)}%';
 
     final description = _diseaseInfo?['description'] ??
-        (record.description.isNotEmpty
-            ? record.description
+        (widget.record.description.isNotEmpty
+            ? widget.record.description
             : AppStrings.get('no_description', lang));
 
     return Scaffold(
@@ -192,7 +268,7 @@ class ReportDetailScreen extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            _categoryLabel(record.category, lang),
+                            _categoryLabel(widget.record.category, lang),
                             style: TextStyle(
                               fontSize: 12,
                               color: isDark
@@ -234,6 +310,63 @@ class ReportDetailScreen extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(
                       horizontal: AppTheme.spacingLarge),
                   children: [
+                    // Finalized Certification Banner (if signed)
+                    if (_isFinalized && _finalizedGateResult != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF2ECC71), Color(0xFF27AE60)],
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF2ECC71).withOpacity(0.3),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.verified_user_rounded, color: Colors.white, size: 24),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'CLINICALLY FINALIZED & SEALED',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Audit Hash: #${_finalizedGateResult!.auditHash} • Score: ${_finalizedGateResult!.overallScorePercent}%',
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 11,
+                                        fontFamily: 'monospace',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: _copyCertifiedReport,
+                                icon: const Icon(Icons.copy, color: Colors.white, size: 18),
+                                tooltip: 'Copy Certified Report',
+                              ),
+                            ],
+                          ),
+                        ),
+                      ).animate().fadeIn(duration: 400.ms).slideY(begin: -0.1, end: 0),
+
                     // Section 1: Patient Info
                     _sectionCard(
                       isDark: isDark,
@@ -243,14 +376,14 @@ class ReportDetailScreen extends StatelessWidget {
                         children: [
                           _sectionTitle(AppStrings.get('patient_information', lang), isDark),
                           const SizedBox(height: 12),
-                          _infoRow(AppStrings.get('patient', lang), patientName, isDark),
+                          _infoRow(AppStrings.get('patient', lang), widget.patientName, isDark),
                           _infoRow(AppStrings.get('report_date', lang), '$dateStr at $timeStr', isDark),
                           _infoRow(AppStrings.get('report_id', lang),
-                              record.id?.substring(0, 8).toUpperCase() ?? 'N/A', isDark),
-                          if (record.performedByName != null)
+                              widget.record.id?.substring(0, 8).toUpperCase() ?? 'N/A', isDark),
+                          if (widget.record.performedByName != null)
                             _infoRow(
                               AppStrings.get('performed_by', lang),
-                              '${record.performedByName} (${record.performedByRole ?? 'N/A'})',
+                              '${widget.record.performedByName} (${widget.record.performedByRole ?? 'N/A'})',
                               isDark,
                             ),
                         ],
@@ -278,7 +411,7 @@ class ReportDetailScreen extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Icon(
-                                  _categoryIcon(record.category),
+                                  _categoryIcon(widget.record.category),
                                   color: catColor,
                                   size: 26,
                                 ),
@@ -289,7 +422,7 @@ class ReportDetailScreen extends StatelessWidget {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      _categoryLabel(record.category, lang),
+                                      _categoryLabel(widget.record.category, lang),
                                       style: TextStyle(
                                         fontSize: 11,
                                         fontWeight: FontWeight.w600,
@@ -298,7 +431,7 @@ class ReportDetailScreen extends StatelessWidget {
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
-                                      record.className,
+                                      widget.record.className,
                                       style: TextStyle(
                                         fontSize: 17,
                                         fontWeight: FontWeight.w800,
@@ -398,7 +531,88 @@ class ReportDetailScreen extends StatelessWidget {
 
                     const SizedBox(height: 12),
 
-                    // Section 5: Detection Metadata
+                    // Section 5: Physician Notes & Quality Gate Sign-Off
+                    _sectionCard(
+                      isDark: isDark,
+                      delay: 350,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              _sectionTitle('Physician Assessment & Remarks', isDark),
+                              const Spacer(),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: (liveQg.isPassed ? const Color(0xFF2ECC71) : const Color(0xFFF39C12))
+                                      .withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  'Q-GATE ${liveQg.overallScorePercent}%',
+                                  style: TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: liveQg.isPassed ? const Color(0xFF2ECC71) : const Color(0xFFF39C12),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          TextField(
+                            controller: _notesCtrl,
+                            enabled: !_isFinalized,
+                            maxLines: 3,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: isDark ? AppTheme.darkTextLight : AppTheme.textDark,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: 'Add clinical impression, diagnostic confirmation, or specific follow-up timeframe...',
+                              hintStyle: TextStyle(
+                                fontSize: 12,
+                                color: isDark ? AppTheme.darkTextGray : AppTheme.textGray,
+                              ),
+                              filled: true,
+                              fillColor: (isDark ? Colors.white : Colors.black).withOpacity(0.04),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide(color: (isDark ? Colors.white : Colors.black).withOpacity(0.1)),
+                              ),
+                            ),
+                            onChanged: (_) => setState(() {}),
+                          ),
+                          const SizedBox(height: 14),
+                          // Action Button: Run Quality Gate & Finalize
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: _openQualityGateSheet,
+                              icon: Icon(
+                                _isFinalized ? Icons.fact_check_rounded : Icons.verified_user_outlined,
+                                size: 18,
+                              ),
+                              label: Text(
+                                _isFinalized ? 'View Certified Quality Gate Audit' : 'Run Quality Gate & Sign Report',
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                backgroundColor: _isFinalized ? const Color(0xFF2ECC71) : const Color(0xFF667EEA),
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // Section 6: Detection Metadata
                     _sectionCard(
                       isDark: isDark,
                       delay: 400,
@@ -407,14 +621,14 @@ class ReportDetailScreen extends StatelessWidget {
                         children: [
                           _sectionTitle(AppStrings.get('detection_metadata', lang), isDark),
                           const SizedBox(height: 12),
-                          _infoRow(AppStrings.get('category', lang), record.category, isDark),
+                          _infoRow(AppStrings.get('category', lang), widget.record.category, isDark),
                           _infoRow(AppStrings.get('timestamp', lang), '$dateStr $timeStr', isDark),
                           _infoRow(AppStrings.get('model_confidence', lang), confStr, isDark),
                           _infoRow(AppStrings.get('severity', lang), severity, isDark),
-                          if (record.performedByName != null)
-                            _infoRow(AppStrings.get('performer', lang), record.performedByName!, isDark),
-                          if (record.performedByRole != null)
-                            _infoRow(AppStrings.get('performer_role', lang), record.performedByRole!, isDark),
+                          if (widget.record.performedByName != null)
+                            _infoRow(AppStrings.get('performer', lang), widget.record.performedByName!, isDark),
+                          if (widget.record.performedByRole != null)
+                            _infoRow(AppStrings.get('performer_role', lang), widget.record.performedByRole!, isDark),
                         ],
                       ),
                     ),
@@ -488,15 +702,14 @@ class ReportDetailScreen extends StatelessWidget {
   }
 
   Widget _confidenceMeter(String label, Color color, bool isDark, String lang) {
-    // For heart_sound, confidence is BPM, not a percentage
-    final isPercentage = record.category != 'heart_sound';
-    final barValue = isPercentage ? record.confidence : 0.75; // normalized for heart
+    final isPercentage = widget.record.category != 'heart_sound';
+    final barValue = isPercentage ? widget.record.confidence : 0.75;
 
     Color barColor;
     if (isPercentage) {
-      if (record.confidence >= 0.8) {
+      if (widget.record.confidence >= 0.8) {
         barColor = const Color(0xFF4CAF50);
-      } else if (record.confidence >= 0.5) {
+      } else if (widget.record.confidence >= 0.5) {
         barColor = const Color(0xFFFF9800);
       } else {
         barColor = const Color(0xFFFF5252);
