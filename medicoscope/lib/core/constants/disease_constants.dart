@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
-/// The three chronic-disease screening decks supported by MedicoScope.
-enum DiseaseType { diabetes, hypertension, anemia }
+/// The screening decks supported by MedicoScope. The first three are the
+/// chronic-disease decks; `respiratory` is a first-class acoustic-screening
+/// modality (single method) that flows through the same result/alert pipeline.
+enum DiseaseType { diabetes, hypertension, anemia, respiratory }
 
 /// Ways a user can get screened for a given disease.
 enum DetectionMethod {
@@ -11,6 +13,7 @@ enum DetectionMethod {
   retinalFundus,
   conjunctivalPallor,
   ppgBloodPressure,
+  respiratoryAcoustic,
 }
 
 class DiseaseMeta {
@@ -196,6 +199,38 @@ class DiseaseRegistry {
       prevalenceIndia: '57% of women, 67% of children (NFHS-5)',
       prevalenceUSA: '~5.6% general population (NHANES)',
     ),
+    DiseaseType.respiratory: DiseaseMeta(
+      type: DiseaseType.respiratory,
+      id: 'respiratory',
+      title: 'Respiratory',
+      shortDesc: 'Acoustic breathing screen from your phone mic',
+      longDesc:
+          'Respiratory acoustic screening records your breathing and analyses it '
+          'on-device: breathing rate from the amplitude-envelope FFT, wheeze from '
+          'sustained tonal peaks (100-1000 Hz), crackles from impulsive bursts, '
+          'and cough count. It is a screening signal for respiratory distress, '
+          'NOT a diagnosis of asthma, COPD, or pneumonia.',
+      icon: Icons.air_outlined,
+      gradient: [Color(0xFF43C6AC), Color(0xFF191654)],
+      methods: [DetectionMethod.respiratoryAcoustic],
+      datasets: [
+        DatasetCitation(
+          name: 'ICBHI 2017 Respiratory Sound Database',
+          institution: 'Int. Conf. on Biomedical Health Informatics',
+          country: 'Global',
+          usedFor: 'Inspiration for wheeze/crackle acoustic features (not a trained model)',
+        ),
+        DatasetCitation(
+          name: 'WHO / GINA / GOLD respiratory-rate references',
+          institution: 'World Health Organization / GINA / GOLD',
+          country: 'Global',
+          usedFor: 'Tachypnea thresholds and screening guidance',
+        ),
+      ],
+      alertType: 'respiratory_high_risk',
+      prevalenceIndia: 'Chronic respiratory disease ~7% of deaths (ICMR)',
+      prevalenceUSA: 'Asthma ~25M, COPD ~15M adults (CDC)',
+    ),
   };
 
   static DiseaseMeta of(DiseaseType t) => meta[t]!;
@@ -252,6 +287,12 @@ class MethodRegistry {
       subtitle: 'Place finger on camera - PPG estimates BP',
       icon: Icons.fingerprint,
       gradient: [Color(0xFF8E2DE2), Color(0xFF4A00E0)],
+    ),
+    DetectionMethod.respiratoryAcoustic: MethodMeta(
+      title: 'Respiratory Acoustic',
+      subtitle: 'Breathe near the mic - we analyse the sound',
+      icon: Icons.air_outlined,
+      gradient: [Color(0xFF43C6AC), Color(0xFF191654)],
     ),
   };
 

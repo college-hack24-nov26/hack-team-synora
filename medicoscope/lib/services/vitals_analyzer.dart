@@ -56,6 +56,9 @@ class VitalsAnalyzer {
     }
 
     switch (disease) {
+      case DiseaseType.respiratory:
+        // Respiratory is screened acoustically, not from wearable vitals.
+        break;
       case DiseaseType.diabetes:
         addFinding(
           name: 'Resting Heart Rate',
@@ -250,6 +253,9 @@ class VitalsAnalyzer {
       case DiseaseType.anemia:
         recs.add('Get a CBC + ferritin blood test');
         recs.add('Add iron-rich foods with vitamin C');
+        break;
+      case DiseaseType.respiratory:
+        recs.add('Use the Respiratory Check to record your breathing');
         break;
     }
     return recs;

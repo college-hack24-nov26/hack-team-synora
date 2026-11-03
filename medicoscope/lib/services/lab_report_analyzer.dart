@@ -484,6 +484,8 @@ class LabReportAnalyzer {
           'Retest hemoglobin in 4-6 weeks',
         ]);
         break;
+      case DiseaseType.respiratory:
+        break; // respiratory is screened acoustically, not via lab report
     }
     if (r == RiskLevel.high || r == RiskLevel.critical) {
       base.insert(0, 'URGENT: Book an in-person consult with a $disease specialist');
@@ -499,6 +501,8 @@ class LabReportAnalyzer {
         return 'AHA/ACC 2017 + ICMR Hypertension Guidelines';
       case DiseaseType.anemia:
         return 'WHO Anemia Thresholds + NFHS-5 baselines';
+      case DiseaseType.respiratory:
+        return 'On-device respiratory acoustic screening';
     }
   }
 }

@@ -1,19 +1,31 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:medicoscope/core/theme/app_theme.dart';
-import 'package:medicoscope/core/theme/theme_provider.dart';
-import 'package:medicoscope/core/widgets/glass_card.dart';
-import 'package:medicoscope/services/respiratory_analyzer.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:record/record.dart';
 
-/// Respiratory acoustic screening - record ~15 s of breathing/coughing, then
-/// run the on-device [RespiratoryAnalyzer]. Real signal only: nothing is
-/// fabricated, and a noisy/short clip is honestly rejected rather than scored.
+import 'package:medicoscope/core/providers/auth_provider.dart';
+import 'package:medicoscope/core/locale/locale_provider.dart';
+import 'package:medicoscope/core/theme/app_theme.dart';
+import 'package:medicoscope/core/theme/theme_provider.dart';
+import 'package:medicoscope/core/widgets/glass_card.dart';
+import 'package:medicoscope/models/disease_risk_result.dart';
+import 'package:medicoscope/screens/diseases/widgets/risk_result_view.dart';
+import 'package:medicoscope/services/chat_service.dart';
+import 'package:medicoscope/services/disease_result_pipeline.dart';
+import 'package:medicoscope/services/respiratory_analyzer.dart';
+import 'package:medicoscope/services/respiratory_calibration_store.dart';
+import 'package:medicoscope/services/respiratory_signal.dart';
+
+/// Respiratory acoustic screening. Records breathing, extracts REAL features
+/// (envelope-FFT breathing rate, STFT wheeze/crackle, I:E ratio), optionally
+/// judged against a personal resting-breathing calibration, and persists an
+/// honest [DiseaseRiskResult] (history + doctor alert like the other modalities).
 class RespiratoryScreen extends StatefulWidget {
-  const RespiratoryScreen({super.key});
+  final String? patientId;
+  const RespiratoryScreen({super.key, this.patientId});
 
   @override
   State<RespiratoryScreen> createState() => _RespiratoryScreenState();
@@ -21,30 +33,58 @@ class RespiratoryScreen extends StatefulWidget {
 
 class _RespiratoryScreenState extends State<RespiratoryScreen>
     with TickerProviderStateMixin {
+  static const int _captureSeconds = 18;
+
   final AudioRecorder _recorder = AudioRecorder();
 
   bool _isRecording = false;
   bool _isProcessing = false;
+  bool _calibrating = false;
   int _secondsElapsed = 0;
   Timer? _timer;
+  StreamSubscription<Amplitude>? _ampSub;
   String? _path;
-  RespiratoryResult? _result;
-  String? _error;
 
-  late final AnimationController _pulse = AnimationController(
+  final List<double> _levels = []; // rolling mic level for the live waveform
+  double _level = 0;
+
+  DiseaseRiskResult? _result;
+  RespiratoryFeatures? _features; // for the spectrogram / envelope viz
+  String? _error;
+  RespiratoryCalibration? _calibration;
+
+  late final AnimationController _pace = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 1400),
+    duration: const Duration(seconds: 4),
   );
+  String _paceLabel = 'Inhale';
+
+  @override
+  void initState() {
+    super.initState();
+    _pace.addStatusListener((s) {
+      if (s == AnimationStatus.forward) setState(() => _paceLabel = 'Inhale');
+      if (s == AnimationStatus.reverse) setState(() => _paceLabel = 'Exhale');
+    });
+    _loadCalibration();
+  }
+
+  Future<void> _loadCalibration() async {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final c = await RespiratoryCalibrationStore.load(auth.user?.id ?? '');
+    if (mounted) setState(() => _calibration = c);
+  }
 
   @override
   void dispose() {
     _timer?.cancel();
-    _pulse.dispose();
+    _ampSub?.cancel();
+    _pace.dispose();
     _recorder.dispose();
     super.dispose();
   }
 
-  Future<void> _start() async {
+  Future<void> _start({bool forCalibration = false}) async {
     if (!await _recorder.hasPermission()) {
       setState(() => _error = 'Microphone permission is needed to record.');
       return;
@@ -57,48 +97,134 @@ class _RespiratoryScreenState extends State<RespiratoryScreen>
       path: path,
     );
     setState(() {
+      _calibrating = forCalibration;
       _isRecording = true;
       _secondsElapsed = 0;
       _path = path;
       _result = null;
+      _features = null;
       _error = null;
+      _levels.clear();
     });
-    _pulse.repeat();
+    _pace.repeat(reverse: true);
+    _ampSub = _recorder
+        .onAmplitudeChanged(const Duration(milliseconds: 120))
+        .listen((amp) {
+      // dBFS (~ -45..0) -> 0..1 level for the meter + waveform.
+      final lvl = ((amp.current + 45) / 45).clamp(0.0, 1.0);
+      setState(() {
+        _level = lvl;
+        _levels.add(lvl);
+        if (_levels.length > 60) _levels.removeAt(0);
+      });
+    });
     _timer = Timer.periodic(const Duration(seconds: 1), (t) {
       setState(() => _secondsElapsed++);
-      if (_secondsElapsed >= 20) _stop(); // auto-stop at 20 s
+      if (_secondsElapsed >= _captureSeconds) _stop();
     });
   }
 
   Future<void> _stop() async {
     _timer?.cancel();
-    _pulse.stop();
-    _pulse.reset();
+    await _ampSub?.cancel();
+    _ampSub = null;
+    _pace.stop();
+    _pace.reset();
     final path = await _recorder.stop();
     setState(() {
       _isRecording = false;
       _path = path ?? _path;
     });
-    await _analyze();
+    await _finish();
   }
 
-  Future<void> _analyze() async {
+  Future<void> _finish() async {
     if (_path == null) return;
     setState(() {
       _isProcessing = true;
       _error = null;
     });
     try {
-      final result = await RespiratoryAnalyzer.analyzeWavFile(_path!);
+      final feats = await RespiratorySignal.analyzeWavFile(_path!);
+
+      // Calibration capture: store the resting baseline, no scoring.
+      if (_calibrating) {
+        if (!mounted) return;
+        if (!feats.usable) {
+          setState(() {
+            _isProcessing = false;
+            _calibrating = false;
+            _error = 'Calibration needs a clean recording. ${feats.reason}';
+          });
+          return;
+        }
+        final auth = Provider.of<AuthProvider>(context, listen: false);
+        final calib = RespiratoryCalibration(
+          restingBpm: feats.breathingRate,
+          refFeatures: feats.toVector(),
+          timestamp: DateTime.now(),
+        );
+        await RespiratoryCalibrationStore.save(auth.user?.id ?? '', calib);
+        if (!mounted) return;
+        setState(() {
+          _calibration = calib;
+          _calibrating = false;
+          _isProcessing = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(
+                'Calibrated: resting ${feats.breathingRate.toStringAsFixed(0)} breaths/min saved.')));
+        return;
+      }
+
+      final base = RespiratoryAnalyzer.analyze(
+          features: feats, calibration: _calibration);
+      if (!mounted) return;
+      if (base.findings.isEmpty) {
+        setState(() {
+          _isProcessing = false;
+          _error = base.headline;
+        });
+        return;
+      }
+      setState(() {
+        _features = feats;
+        _result = base;
+      });
+
+      // LLM narrative + persist to history + doctor alert (with GPS) + coins.
+      final lang =
+          Provider.of<LocaleProvider>(context, listen: false).languageCode;
+      final explanation = await ChatService.explainRisk(
+        disease: 'Respiratory',
+        method: 'respiratory acoustic screening',
+        riskLevel: base.risk.label,
+        headline: base.headline,
+        findings: base.findings
+            .map((f) =>
+                '${f.name} ${f.value} ${f.unit} (${f.flag}) - ${f.interpretation}')
+            .toList(),
+        language: lang,
+      );
+      final enriched = DiseaseRiskResult(
+        disease: base.disease,
+        method: base.method,
+        risk: base.risk,
+        score: base.score,
+        headline: base.headline,
+        findings: base.findings,
+        topContributors: base.topContributors,
+        recommendations: base.recommendations,
+        dataSource: base.dataSource,
+        timestamp: base.timestamp,
+        llmExplanation: explanation,
+      );
       if (!mounted) return;
       setState(() {
+        _result = enriched;
         _isProcessing = false;
-        if (result.usable) {
-          _result = result;
-        } else {
-          _error = result.headline;
-        }
       });
+      await DiseaseResultPipeline.persist(context, enriched);
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -107,6 +233,13 @@ class _RespiratoryScreenState extends State<RespiratoryScreen>
       });
     }
   }
+
+  void _reset() => setState(() {
+        _result = null;
+        _features = null;
+        _error = null;
+        _levels.clear();
+      });
 
   @override
   Widget build(BuildContext context) {
@@ -125,23 +258,31 @@ class _RespiratoryScreenState extends State<RespiratoryScreen>
               Expanded(
                 child: SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: AppTheme.spacingLarge),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: AppTheme.spacingLarge),
                   child: Column(
                     children: [
                       const SizedBox(height: AppTheme.spacingMedium),
-                      _captureCard(isDark),
-                      if (_isProcessing) ...[
-                        const SizedBox(height: AppTheme.spacingLarge),
-                        _processing(isDark),
-                      ],
-                      if (_error != null) ...[
-                        const SizedBox(height: AppTheme.spacingLarge),
-                        _errorCard(_error!, isDark),
-                      ],
-                      if (_result != null) ...[
-                        const SizedBox(height: AppTheme.spacingLarge),
-                        _resultCard(_result!, isDark),
+                      if (_result != null && !_isProcessing) ...[
+                        RiskResultView(result: _result!, onRetry: _reset),
+                        if (_features != null) ...[
+                          const SizedBox(height: AppTheme.spacingMedium),
+                          _spectrogramCard(_features!, isDark),
+                        ],
+                      ] else ...[
+                        _captureCard(isDark),
+                        if (!_isRecording && !_isProcessing) ...[
+                          const SizedBox(height: AppTheme.spacingMedium),
+                          _calibrationCard(isDark),
+                        ],
+                        if (_isProcessing) ...[
+                          const SizedBox(height: AppTheme.spacingLarge),
+                          _processing(isDark),
+                        ],
+                        if (_error != null) ...[
+                          const SizedBox(height: AppTheme.spacingLarge),
+                          _errorCard(_error!, isDark),
+                        ],
                       ],
                       const SizedBox(height: AppTheme.spacingXLarge),
                     ],
@@ -169,31 +310,29 @@ class _RespiratoryScreenState extends State<RespiratoryScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Respiratory Check',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      color:
-                          isDark ? AppTheme.darkTextLight : AppTheme.textDark,
-                    ),
-                  ),
-                  Text(
-                    'Breathing-pattern screening',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: (isDark ? AppTheme.darkTextLight : AppTheme.textGray)
-                          .withValues(alpha: 0.75),
-                    ),
-                  ),
+                  Text('Respiratory Check',
+                      style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          color: isDark
+                              ? AppTheme.darkTextLight
+                              : AppTheme.textDark)),
+                  Text('Acoustic breathing screening',
+                      style: TextStyle(
+                          fontSize: 13,
+                          color:
+                              (isDark ? AppTheme.darkTextLight : AppTheme.textGray)
+                                  .withValues(alpha: 0.75))),
                 ],
               ),
             ),
             Container(
               padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                gradient: AppTheme.orangeGradient,
-                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                    colors: [Color(0xFF43C6AC), Color(0xFF191654)]),
+                borderRadius:
+                    BorderRadius.all(Radius.circular(AppTheme.radiusMedium)),
               ),
               child: const Icon(Icons.air, color: Colors.white),
             ),
@@ -202,81 +341,199 @@ class _RespiratoryScreenState extends State<RespiratoryScreen>
       ).animate().fadeIn(duration: 400.ms);
 
   Widget _captureCard(bool isDark) {
+    const accent = Color(0xFF43C6AC);
     return GlassCard(
       padding: const EdgeInsets.all(AppTheme.spacingLarge),
       child: Column(
         children: [
           Text(
             _isRecording
-                ? 'Listening… breathe normally near the mic'
-                : 'Hold the phone ~10 cm away and breathe steadily for ~15 seconds.',
+                ? (_calibrating
+                    ? 'Calibration: breathe calmly and normally'
+                    : 'Breathe steadily near the mic')
+                : 'Sit upright, hold the phone ~10 cm from your mouth, and breathe steadily for the full capture.',
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 14,
-              height: 1.4,
-              color: isDark ? AppTheme.darkTextLight : AppTheme.textDark,
-            ),
+                fontSize: 14,
+                height: 1.4,
+                color: isDark ? AppTheme.darkTextLight : AppTheme.textDark),
           ),
           const SizedBox(height: AppTheme.spacingLarge),
-          GestureDetector(
-            onTap: _isProcessing
-                ? null
-                : (_isRecording ? _stop : _start),
-            child: AnimatedBuilder(
-              animation: _pulse,
-              builder: (context, _) {
-                final scale = _isRecording ? 1 + _pulse.value * 0.12 : 1.0;
-                return Transform.scale(
-                  scale: scale,
-                  child: Container(
-                    width: 120,
-                    height: 120,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: AppTheme.orangeGradient,
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppTheme.primaryOrange.withValues(
-                              alpha: _isRecording ? 0.45 : 0.30),
-                          blurRadius: _isRecording ? 30 : 18,
-                          spreadRadius: _isRecording ? 6 : 2,
-                        ),
-                      ],
-                    ),
-                    child: Icon(
-                      _isRecording ? Icons.stop_rounded : Icons.mic_rounded,
-                      color: Colors.white,
-                      size: 48,
+          if (_isRecording) ...[
+            // Breathing pacing guide.
+            AnimatedBuilder(
+              animation: _pace,
+              builder: (_, __) {
+                final scale = 0.7 + _pace.value * 0.5;
+                return Column(children: [
+                  Transform.scale(
+                    scale: scale,
+                    child: Container(
+                      width: 90,
+                      height: 90,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: const LinearGradient(
+                            colors: [Color(0xFF43C6AC), Color(0xFF191654)]),
+                        boxShadow: [
+                          BoxShadow(
+                              color: accent.withValues(alpha: .45),
+                              blurRadius: 24,
+                              spreadRadius: 4),
+                        ],
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(_paceLabel,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13)),
                     ),
                   ),
-                );
+                ]);
               },
             ),
-          ),
-          const SizedBox(height: AppTheme.spacingMedium),
-          Text(
-            _isRecording ? '00:${_secondsElapsed.toString().padLeft(2, '0')}' : 'Tap to record',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: _isRecording
-                  ? AppTheme.primaryOrange
-                  : (isDark ? AppTheme.darkTextLight : AppTheme.textGray),
+            const SizedBox(height: AppTheme.spacingLarge),
+            // Live waveform + level meter.
+            SizedBox(
+              height: 46,
+              width: double.infinity,
+              child: CustomPaint(painter: _WavePainter(_levels, accent)),
             ),
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                value: _level,
+                minHeight: 8,
+                backgroundColor:
+                    (isDark ? Colors.white : Colors.black).withValues(alpha: .08),
+                valueColor: AlwaysStoppedAnimation<Color>(
+                    _level > 0.15 ? const Color(0xFF2ECC71) : const Color(0xFFF0B45C)),
+              ),
+            ),
+            const SizedBox(height: 5),
+            Text(
+              _level < 0.08
+                  ? 'Too quiet - breathe a little louder / closer'
+                  : 'Good level - keep breathing steadily',
+              style: TextStyle(
+                  fontSize: 10.5,
+                  color: isDark ? AppTheme.darkTextGray : AppTheme.textGray),
+            ),
+            const SizedBox(height: AppTheme.spacingMedium),
+            Text('00:${_secondsElapsed.toString().padLeft(2, '0')} / 00:$_captureSeconds',
+                style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: accent)),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: _stop,
+              icon: const Icon(Icons.stop_circle_outlined),
+              label: const Text('Stop now'),
+              style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: accent.withValues(alpha: .5))),
+            ),
+          ] else
+            GestureDetector(
+              onTap: _isProcessing ? null : () => _start(),
+              child: Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const LinearGradient(
+                      colors: [Color(0xFF43C6AC), Color(0xFF191654)]),
+                  boxShadow: [
+                    BoxShadow(
+                        color: accent.withValues(alpha: 0.30),
+                        blurRadius: 18,
+                        spreadRadius: 2),
+                  ],
+                ),
+                child: const Icon(Icons.mic_rounded, color: Colors.white, size: 48),
+              ),
+            ),
+          if (!_isRecording) ...[
+            const SizedBox(height: AppTheme.spacingMedium),
+            Text('Tap to record ($_captureSeconds s)',
+                style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? AppTheme.darkTextLight : AppTheme.textGray)),
+          ],
+        ],
+      ),
+    ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.06, end: 0);
+  }
+
+  Widget _calibrationCard(bool isDark) {
+    final calibrated = _calibration != null;
+    const accent = Color(0xFF43C6AC);
+    return GlassCard(
+      padding: const EdgeInsets.all(AppTheme.spacingMedium),
+      child: Row(
+        children: [
+          Icon(calibrated ? Icons.verified : Icons.tune,
+              size: 18, color: calibrated ? const Color(0xFF2ECC71) : accent),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              calibrated
+                  ? 'Personalized: resting ${_calibration!.restingBpm.toStringAsFixed(0)}/min, ${_calibration!.age.inDays} day(s) ago${_calibration!.isStale ? ' • re-calibrate' : ''}'
+                  : 'Not calibrated - scans use a population cutoff. Calibrate your resting breathing once for accuracy.',
+              style: TextStyle(
+                  fontSize: 11.5,
+                  height: 1.3,
+                  color: isDark ? AppTheme.darkTextLight : AppTheme.textDark),
+            ),
+          ),
+          TextButton(
+            onPressed: () => _start(forCalibration: true),
+            child: Text(calibrated ? 'Redo' : 'Calibrate'),
           ),
         ],
       ),
-    ).animate().fadeIn(delay: 100.ms, duration: 400.ms).slideY(begin: 0.08, end: 0);
+    );
   }
+
+  Widget _spectrogramCard(RespiratoryFeatures f, bool isDark) => GlassCard(
+        padding: const EdgeInsets.all(AppTheme.spacingMedium),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Frequency spectrum (0-2 kHz)',
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? AppTheme.darkTextLight : AppTheme.textDark)),
+            const SizedBox(height: 4),
+            Text('Sustained tall bars in 100-1000 Hz can indicate wheeze',
+                style: TextStyle(
+                    fontSize: 10.5,
+                    color: isDark ? AppTheme.darkTextGray : AppTheme.textGray)),
+            const SizedBox(height: 10),
+            SizedBox(
+              height: 70,
+              width: double.infinity,
+              child: CustomPaint(
+                  painter: _SpectrumPainter(f.avgSpectrum, const Color(0xFF43C6AC))),
+            ),
+          ],
+        ),
+      ).animate().fadeIn(duration: 350.ms);
 
   Widget _processing(bool isDark) => GlassCard(
         padding: const EdgeInsets.all(AppTheme.spacingLarge),
         child: Row(
           children: [
             const SizedBox(
-                width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5)),
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(strokeWidth: 2.5)),
             const SizedBox(width: 14),
-            Text('Analyzing breathing pattern…',
+            Text(_calibrating ? 'Saving calibration…' : 'Analyzing breathing…',
                 style: TextStyle(
                     fontSize: 14,
                     color: isDark ? AppTheme.darkTextLight : AppTheme.textDark)),
@@ -296,118 +553,62 @@ class _RespiratoryScreenState extends State<RespiratoryScreen>
                   style: TextStyle(
                       fontSize: 13,
                       height: 1.4,
-                      color:
-                          isDark ? AppTheme.darkTextLight : AppTheme.textDark)),
+                      color: isDark ? AppTheme.darkTextLight : AppTheme.textDark)),
             ),
           ],
         ),
       ).animate().fadeIn(duration: 300.ms);
+}
 
-  Widget _resultCard(RespiratoryResult r, bool isDark) {
-    final tone = r.distressScore >= 0.6
-        ? const Color(0xFFFF5252)
-        : r.distressScore >= 0.4
-            ? const Color(0xFFFF9800)
-            : const Color(0xFF4CAF50);
-    return GlassCard(
-      padding: const EdgeInsets.all(AppTheme.spacingLarge),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.air, size: 18, color: tone),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text('Respiratory markers',
-                    style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: isDark
-                            ? AppTheme.darkTextLight
-                            : AppTheme.textDark)),
-              ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: tone.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text('${(r.distressScore * 100).round()}%',
-                    style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: tone)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(r.headline,
-              style: TextStyle(
-                  fontSize: 13,
-                  height: 1.4,
-                  color:
-                      isDark ? AppTheme.darkTextLight : AppTheme.textDark)),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _metric('Breathing rate', '${r.breathingRate.toStringAsFixed(0)}/min', isDark),
-              _metric('Cough bursts', '${r.coughCount}', isDark),
-              _metric('Wheeze band', '${(r.wheezeBandRatio * 100).round()}%', isDark),
-              _metric('Confidence', '${(r.confidence * 100).round()}%', isDark),
-            ],
-          ),
-          const SizedBox(height: 14),
-          for (final note in r.notes) ...[
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('•  ', style: TextStyle(fontSize: 12)),
-                Expanded(
-                  child: Text(note,
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        height: 1.4,
-                        color: (isDark
-                                ? AppTheme.darkTextLight
-                                : AppTheme.textDark)
-                            .withValues(alpha: 0.8),
-                      )),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-          ],
-        ],
-      ),
-    ).animate().fadeIn(duration: 450.ms).slideY(begin: 0.08, end: 0);
+/// Live rolling waveform from mic levels (0..1).
+class _WavePainter extends CustomPainter {
+  final List<double> levels;
+  final Color color;
+  _WavePainter(this.levels, this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (levels.isEmpty) return;
+    final barW = size.width / 60;
+    final paint = Paint()
+      ..color = color
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = barW * 0.6;
+    final mid = size.height / 2;
+    for (int i = 0; i < levels.length; i++) {
+      final x = i * barW + barW / 2;
+      final h = (levels[i] * size.height * 0.9).clamp(2.0, size.height);
+      canvas.drawLine(Offset(x, mid - h / 2), Offset(x, mid + h / 2), paint);
+    }
   }
 
-  Widget _metric(String label, String value, bool isDark) => Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label,
-                style: TextStyle(
-                    fontSize: 10,
-                    color: (isDark ? AppTheme.darkTextLight : AppTheme.textGray)
-                        .withValues(alpha: 0.7))),
-            const SizedBox(height: 2),
-            Text(value,
-                style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: isDark ? AppTheme.darkTextLight : AppTheme.textDark)),
-          ],
-        ),
+  @override
+  bool shouldRepaint(covariant _WavePainter old) => true;
+}
+
+/// Static average-spectrum bars (0..1), a mini spectrogram of the whole clip.
+class _SpectrumPainter extends CustomPainter {
+  final List<double> spectrum;
+  final Color color;
+  _SpectrumPainter(this.spectrum, this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (spectrum.isEmpty) return;
+    final barW = size.width / spectrum.length;
+    for (int i = 0; i < spectrum.length; i++) {
+      final h = (spectrum[i] * size.height).clamp(1.0, size.height);
+      // Tint the 100-1000 Hz wheeze band brighter (roughly bins 3..32 of 64@2kHz).
+      final inWheeze = i >= 3 && i <= 32;
+      final paint = Paint()
+        ..color = inWheeze ? color : color.withValues(alpha: .45);
+      canvas.drawRect(
+        Rect.fromLTWH(i * barW, size.height - h, barW * 0.85, h),
+        paint,
       );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _SpectrumPainter old) => false;
 }

@@ -116,6 +116,9 @@ class SymptomAnalyzer {
         recs.add('Get a CBC (Complete Blood Count) and ferritin test');
         recs.add('Include iron-rich foods + vitamin C with meals');
         break;
+      case DiseaseType.respiratory:
+        recs.add('Use the Respiratory Check to record and screen your breathing');
+        break;
     }
     return recs;
   }

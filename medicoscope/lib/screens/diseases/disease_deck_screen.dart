@@ -12,6 +12,7 @@ import 'package:medicoscope/screens/diseases/methods/disease_vitals_screen.dart'
 import 'package:medicoscope/screens/diseases/methods/retinal_fundus_screen.dart';
 import 'package:medicoscope/screens/diseases/methods/conjunctival_pallor_screen.dart';
 import 'package:medicoscope/screens/diseases/methods/ppg_blood_pressure_screen.dart';
+import 'package:medicoscope/screens/respiratory/respiratory_screen.dart';
 import 'package:medicoscope/models/disease_risk_result.dart';
 import 'package:medicoscope/screens/diseases/dataset_citations_screen.dart';
 import 'package:medicoscope/screens/diseases/widgets/book_appointment_sheet.dart';
@@ -54,6 +55,9 @@ class DiseaseDeckScreen extends StatelessWidget {
         break;
       case DetectionMethod.ppgBloodPressure:
         screen = PpgBloodPressureScreen(patientId: pid);
+        break;
+      case DetectionMethod.respiratoryAcoustic:
+        screen = RespiratoryScreen(patientId: pid);
         break;
     }
     Navigator.of(context).push(

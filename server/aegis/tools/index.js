@@ -229,8 +229,8 @@ function registerAll(kb = { thresholds: [] }) {
     {
       id: 'respiratory.acoustic_screen', modality: 'respiratory_audio', kind: 'evidence',
       fidelity: 'real', execution: 'network',
-      provenance: { method: 'on-device respiratory acoustics (breathing rate, cough energy, spectral features)' },
-      honesty: 'Real audio features (reuses heart-sound MFCC pipeline). Screening signal for respiratory distress, NOT a diagnosis of asthma/COPD/pneumonia.',
+      provenance: { method: 'on-device respiratory acoustics: envelope-FFT breathing rate + STFT wheeze/crackle features' },
+      honesty: 'Real signal-derived features: breathing rate from the amplitude-envelope FFT, wheeze from sustained tonal peaks (100-1000 Hz), crackles from impulsive bursts. Screening signal for respiratory distress, NOT a diagnosis of asthma/COPD/pneumonia; personally calibrated when available.',
       inputSchema: { result: 'object|optional' },
       requires: ['result'],
     },
