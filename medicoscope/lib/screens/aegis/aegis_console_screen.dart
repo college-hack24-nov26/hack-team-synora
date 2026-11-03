@@ -8,7 +8,7 @@ import 'package:medicoscope/core/theme/theme_provider.dart';
 import 'package:medicoscope/core/providers/auth_provider.dart';
 import 'package:medicoscope/services/aegis_service.dart';
 
-/// Aegis Console — the clinician's view of the safety gate. Lists RED cases the
+/// Aegis Console - the clinician's view of the safety gate. Lists RED cases the
 /// agent BLOCKED and escalated, lets a clinician approve/modify/override, and
 /// shows the tamper-evident audit ledger ("chain INTACT"). This is where the
 /// "human-in-the-loop, governed autonomy" story becomes tangible.

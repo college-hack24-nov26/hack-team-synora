@@ -3,7 +3,7 @@ import 'package:medicoscope/core/constants/disease_constants.dart';
 class SymptomQuestion {
   final String id;
   final String text;
-  final double weight; // 0.0–1.0, relative contribution to score
+  final double weight; // 0.0-1.0, relative contribution to score
   final List<String> redFlags; // additional terms that push to critical if mentioned
 
   const SymptomQuestion({
@@ -23,7 +23,7 @@ class SymptomQuestionBank {
           weight: 1.0),
       SymptomQuestion(
           id: 'urination',
-          text: 'Do you urinate more than 6–7 times a day or wake up at night?',
+          text: 'Do you urinate more than 6-7 times a day or wake up at night?',
           weight: 1.0),
       SymptomQuestion(
           id: 'fatigue',

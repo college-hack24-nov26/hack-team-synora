@@ -10,12 +10,12 @@ const router = express.Router();
  * vitals sessions/alerts during the simulator tick loop, so it authenticates
  * with a shared secret instead of a user JWT. Set SERVICE_KEY in BOTH the Node
  * server and the chatbot env. If SERVICE_KEY is unset we allow the call but
- * warn — so existing deploys keep working until the secret is configured.
+ * warn - so existing deploys keep working until the secret is configured.
  */
 function serviceAuth(req, res, next) {
   const expected = process.env.SERVICE_KEY;
   if (!expected) {
-    console.warn('WARNING: SERVICE_KEY not set — vitals ingest endpoints are unauthenticated. Set it in production.');
+    console.warn('WARNING: SERVICE_KEY not set - vitals ingest endpoints are unauthenticated. Set it in production.');
     return next();
   }
   if (req.header('X-Service-Key') === expected) return next();
@@ -24,7 +24,7 @@ function serviceAuth(req, res, next) {
 
 // ── Ingest (chatbot → Node, service-authenticated) ───────────────────────────
 
-// POST /api/vitals/sessions — record that a monitoring session started
+// POST /api/vitals/sessions - record that a monitoring session started
 router.post('/sessions', serviceAuth, async (req, res) => {
   try {
     const { sessionId, doctorId, patientId, patientName, location } = req.body || {};
@@ -41,7 +41,7 @@ router.post('/sessions', serviceAuth, async (req, res) => {
   }
 });
 
-// PATCH /api/vitals/sessions/:sessionId — tick / stop a session
+// PATCH /api/vitals/sessions/:sessionId - tick / stop a session
 router.patch('/sessions/:sessionId', serviceAuth, async (req, res) => {
   try {
     const { status } = req.body || {};
@@ -57,7 +57,7 @@ router.patch('/sessions/:sessionId', serviceAuth, async (req, res) => {
   }
 });
 
-// POST /api/vitals/alerts — persist one or more vitals alerts
+// POST /api/vitals/alerts - persist one or more vitals alerts
 router.post('/alerts', serviceAuth, async (req, res) => {
   try {
     const { doctorId, patientId, patientName, sessionId, location, alerts } = req.body || {};
@@ -122,7 +122,7 @@ function toClientShape(a) {
   };
 }
 
-// GET /api/vitals/alerts/doctor/:doctorId — a doctor's own alert feed
+// GET /api/vitals/alerts/doctor/:doctorId - a doctor's own alert feed
 router.get('/alerts/doctor/:doctorId', auth, async (req, res) => {
   try {
     if (req.user.role !== 'admin' && req.params.doctorId !== req.user._id.toString()) {
@@ -136,7 +136,7 @@ router.get('/alerts/doctor/:doctorId', auth, async (req, res) => {
   }
 });
 
-// GET /api/vitals/alerts/patient/:patientId — a patient's own alert feed
+// GET /api/vitals/alerts/patient/:patientId - a patient's own alert feed
 router.get('/alerts/patient/:patientId', auth, async (req, res) => {
   try {
     if (req.user.role === 'patient' && req.params.patientId !== req.user._id.toString()) {
@@ -150,7 +150,7 @@ router.get('/alerts/patient/:patientId', auth, async (req, res) => {
   }
 });
 
-// PUT /api/vitals/alerts/:alertId/read — mark an alert read (owner only)
+// PUT /api/vitals/alerts/:alertId/read - mark an alert read (owner only)
 router.put('/alerts/:alertId/read', auth, async (req, res) => {
   try {
     const filter = { alertId: req.params.alertId };

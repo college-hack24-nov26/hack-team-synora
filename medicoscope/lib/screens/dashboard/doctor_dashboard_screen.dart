@@ -14,6 +14,7 @@ import 'package:medicoscope/screens/appointments/doctor_appointments_screen.dart
 import 'package:medicoscope/screens/patients/patient_list_screen.dart';
 import 'package:medicoscope/screens/notifications/notifications_screen.dart';
 import 'package:medicoscope/screens/reports/doctor_reports_screen.dart';
+import 'package:medicoscope/screens/aegis/aegis_console_screen.dart';
 import 'package:medicoscope/services/vitals_service.dart';
 import 'package:medicoscope/services/mental_health_service.dart';
 import 'package:provider/provider.dart';
@@ -45,7 +46,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
 
     // Vitals alerts
     try {
-      final alerts = await VitalsService.getDoctorAlerts(doctorId: userId);
+      final alerts = await VitalsService.getDoctorAlerts(doctorId: userId, authToken: token);
       totalUnread += alerts.where((a) => !(a['read'] ?? false)).length;
     } catch (_) {}
 
@@ -301,6 +302,23 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                     const SizedBox(height: AppTheme.spacingMedium),
 
                     // My Patients tile
+                    // Aegis Console - RED cases the gate blocked & escalated.
+                    DashboardTile(
+                      icon: Icons.shield_outlined,
+                      title: 'Aegis Console',
+                      description: 'Gate-blocked actions awaiting your review',
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFFE36B8E), Color(0xFFC9527A)],
+                      ),
+                      onTap: () =>
+                          _navigateTo(context, const AegisConsoleScreen()),
+                      animationDelay: 480,
+                    ),
+
+                    const SizedBox(height: AppTheme.spacingMedium),
+
                     DashboardTile(
                       icon: Icons.people_outlined,
                       title: AppStrings.get('my_patients', lang),
@@ -317,7 +335,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
 
                     const SizedBox(height: AppTheme.spacingMedium),
 
-                    // My Appointments tile — doctor can see every pending
+                    // My Appointments tile - doctor can see every pending
                     // appointment request + confirm / reschedule history.
                     DashboardTile(
                       icon: Icons.event_available_outlined,

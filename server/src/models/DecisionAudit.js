@@ -1,14 +1,14 @@
 const mongoose = require('mongoose');
 
 /**
- * decision_audit — the append-only, hash-chained record of every autonomous
+ * decision_audit - the append-only, hash-chained record of every autonomous
  * decision and every Aegis gate verdict. This is BOTH the spec's "evidence
  * ledger" and "decision audit" (merged into one collection per the spec's
  * reconciliation note).
  *
  * Tamper-evidence: each row stores `prevHash` (the hash of the prior row for
  * the same episode) and `hash` (sha256 over this row's canonical content +
- * prevHash). Any retroactive edit breaks the chain — verifiable by replay.
+ * prevHash). Any retroactive edit breaks the chain - verifiable by replay.
  *
  * Append-only discipline: rows are NEVER updated in place. A correction
  * (doctor override) writes a NEW row referencing the original via
@@ -29,7 +29,7 @@ const decisionAuditSchema = new mongoose.Schema({
       'evidence_recorded',     // a screening result was logged
       'aegis_classification',  // GREEN/AMBER/RED verdict
       'action_executed',       // a side-effecting action ran
-      'action_blocked',        // RED — action withheld pending human
+      'action_blocked',        // RED - action withheld pending human
       'clinician_decision',    // APPROVE / MODIFY / OVERRIDE / ESCALATE
       'followup_scheduled',
     ],
@@ -48,7 +48,7 @@ const decisionAuditSchema = new mongoose.Schema({
   clinicianId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
 
   model: { type: String, default: '' },           // LLM/model name if any was involved
-  kbVersion: { type: String, default: '' },        // KB version stamp — reproducibility
+  kbVersion: { type: String, default: '' },        // KB version stamp - reproducibility
   rulesVersion: { type: String, default: '' },
 
   // Correction linkage (append-only override)

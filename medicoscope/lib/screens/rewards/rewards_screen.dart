@@ -475,7 +475,7 @@ class _RewardsScreenState extends State<RewardsScreen>
                         title: AppStrings.get('streak_3_bonus', lang),
                         subtitle: coinsProvider.streak3Claimed
                             ? AppStrings.get('claimed_keep_going', lang)
-                            : '${coinsProvider.currentStreak}/3 ${AppStrings.get('days', lang)} — ${AppStrings.get('keep_it_up', lang)}',
+                            : '${coinsProvider.currentStreak}/3 ${AppStrings.get('days', lang)} - ${AppStrings.get('keep_it_up', lang)}',
                         coins: 15,
                         isDark: isDark,
                         delay: 750,
@@ -488,7 +488,7 @@ class _RewardsScreenState extends State<RewardsScreen>
                         title: AppStrings.get('streak_7_bonus', lang),
                         subtitle: coinsProvider.streak7Claimed
                             ? AppStrings.get('claimed_star', lang)
-                            : '${coinsProvider.currentStreak}/7 ${AppStrings.get('days', lang)} — ${AppStrings.get('almost_there', lang)}',
+                            : '${coinsProvider.currentStreak}/7 ${AppStrings.get('days', lang)} - ${AppStrings.get('almost_there', lang)}',
                         coins: 50,
                         isDark: isDark,
                         delay: 800,

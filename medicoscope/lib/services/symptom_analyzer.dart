@@ -86,11 +86,11 @@ class SymptomAnalyzer {
     final disease = DiseaseRegistry.of(d).title.toLowerCase();
     switch (r) {
       case RiskLevel.critical:
-        return 'Reported red-flag symptoms for $disease — urgent evaluation advised.';
+        return 'Reported red-flag symptoms for $disease - urgent evaluation advised.';
       case RiskLevel.high:
         return 'Symptom pattern is consistent with HIGH risk for $disease.';
       case RiskLevel.moderate:
-        return 'Some symptoms align with $disease — consider screening labs.';
+        return 'Some symptoms align with $disease - consider screening labs.';
       case RiskLevel.low:
         return 'Symptom burden for $disease is low right now.';
     }
@@ -99,7 +99,7 @@ class SymptomAnalyzer {
   static List<String> _recommendations(DiseaseType d, RiskLevel r) {
     final recs = <String>[];
     if (r == RiskLevel.critical) {
-      recs.add('URGENT: See a clinician today — red-flag symptoms reported.');
+      recs.add('URGENT: See a clinician today - red-flag symptoms reported.');
     } else if (r == RiskLevel.high) {
       recs.add('URGENT: Book a consult with a ${DiseaseRegistry.of(d).title} specialist this week.');
     }

@@ -18,7 +18,7 @@ import 'package:medicoscope/screens/diseases/widgets/book_appointment_sheet.dart
 import 'package:medicoscope/screens/diseases/widgets/modality_chat_fab.dart';
 import 'package:medicoscope/services/disease_risk_store.dart';
 
-/// Generic deck screen — given a DiseaseType, renders a hero header,
+/// Generic deck screen - given a DiseaseType, renders a hero header,
 /// a grid/list of detection method tiles, dataset citations, and impact stats.
 class DiseaseDeckScreen extends StatelessWidget {
   final DiseaseType disease;
@@ -233,6 +233,29 @@ class DiseaseDeckScreen extends StatelessWidget {
                                     ? AppTheme.darkTextGray
                                     : AppTheme.textGray,
                               ),
+                            ),
+                          ),
+                          // Aegis verification chip - every result visibly
+                          // passed through the safety gate.
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 7, vertical: 2),
+                            decoration: BoxDecoration(
+                              gradient: AppTheme.orangeGradient,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.shield, size: 9, color: Colors.white),
+                                SizedBox(width: 3),
+                                Text('Aegis',
+                                    style: TextStyle(
+                                        fontSize: 8.5,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: .5,
+                                        color: Colors.white)),
+                              ],
                             ),
                           ),
                         ],
@@ -644,7 +667,7 @@ class DiseaseDeckScreen extends StatelessWidget {
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      'Screening tool only — not a diagnosis. Always confirm with a clinician.',
+                      'Screening tool only - not a diagnosis. Always confirm with a clinician.',
                       style: TextStyle(
                         fontSize: 10.5,
                         fontWeight: FontWeight.w600,

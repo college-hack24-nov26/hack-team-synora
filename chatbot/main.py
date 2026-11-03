@@ -81,7 +81,7 @@ async def _backend_patch(path: str, payload: dict, headers: dict | None = None) 
 
 # ── In-memory stores ────────────────────────────────────────────────────────
 # NOTE: these are TRANSIENT working caches only. The durable source of truth is
-# MongoDB via the Node backend — chat history persists to /api/chat, and vitals
+# MongoDB via the Node backend - chat history persists to /api/chat, and vitals
 # sessions/alerts persist to /api/vitals. The dicts below survive only within a
 # single process lifetime and are repopulated from the backend on cold start.
 session_histories: dict[str, list] = {}
@@ -160,10 +160,10 @@ medical conditions, medications, and health history.
 
 IMPORTANT RULES:
 1. Always be empathetic and supportive.
-2. Never diagnose — only provide general information.
+2. Never diagnose - only provide general information.
 3. For severe symptoms, always advise seeking immediate medical attention.
 4. When the patient asks about their health data (BP, vitals, scans, MindSpace sessions), refer to the PATIENT DATA below.
-5. You can correlate data across different sources — e.g., if vitals show high BP and MindSpace shows stress, mention the connection.
+5. You can correlate data across different sources - e.g., if vitals show high BP and MindSpace shows stress, mention the connection.
 6. If the patient mentions something they told MindSpace, you should know about it from their MindSpace transcripts.
 7. {lang_instruction}
 
@@ -176,7 +176,7 @@ MEDICAL KNOWLEDGE BASE:
 
     if medical_context:
         escaped_context = medical_context.replace("{", "{{").replace("}", "}}")
-        system_template += f"\n\nPATIENT DATA (from MedicoScope app — use this to answer patient questions):\n{escaped_context}"
+        system_template += f"\n\nPATIENT DATA (from MedicoScope app - use this to answer patient questions):\n{escaped_context}"
 
     return system_template
 

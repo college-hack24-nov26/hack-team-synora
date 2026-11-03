@@ -19,7 +19,7 @@ const auth = async (req, res, next) => {
 
     // Opt-in revocation check (non-breaking). Only when SESSION_ENFORCEMENT is
     // enabled AND a session row exists for this token do we honour its revoked
-    // flag — so existing tokens without a session row keep working.
+    // flag - so existing tokens without a session row keep working.
     if (process.env.SESSION_ENFORCEMENT === 'true') {
       try {
         const Session = require('../models/Session');

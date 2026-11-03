@@ -1,7 +1,7 @@
 const Doctor = require('../models/Doctor');
 
 /**
- * patientAccess — authorization guard for any route that exposes a specific
+ * patientAccess - authorization guard for any route that exposes a specific
  * patient's medical data via a :patientId (or configurable) route param.
  *
  * Closes the IDOR class of bugs: without this, any authenticated user could

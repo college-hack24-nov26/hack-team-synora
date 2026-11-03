@@ -69,7 +69,7 @@ class _StepsScreenState extends State<StepsScreen>
   Future<void> _initFlow() async {
     setState(() => _state = _ScreenState.checkingAvailability);
 
-    // Step 1 — Check Health Connect availability
+    // Step 1 - Check Health Connect availability
     HCAvailability availability;
     try {
       availability = await HealthConnectService.getAvailability();
@@ -87,7 +87,7 @@ class _StepsScreenState extends State<StepsScreen>
       return;
     }
 
-    // Step 2 — Check / request permissions
+    // Step 2 - Check / request permissions
     setState(() => _state = _ScreenState.loading);
     bool hasPerms;
     try {
@@ -110,7 +110,7 @@ class _StepsScreenState extends State<StepsScreen>
       return;
     }
 
-    // Step 3 — Load data
+    // Step 3 - Load data
     await _loadData();
   }
 

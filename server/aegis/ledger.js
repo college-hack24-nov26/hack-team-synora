@@ -1,5 +1,5 @@
 /**
- * Aegis ledger — the ONLY sanctioned write path for decision_audit.
+ * Aegis ledger - the ONLY sanctioned write path for decision_audit.
  *
  * Guarantees:
  *   - append-only (no in-place edits except the one override flag flip)
@@ -29,7 +29,7 @@ function digestInputs(inputs) {
 
 /**
  * Compute the hash for a row given its content and the previous row's hash.
- * Pure — used both at write time and at verification time.
+ * Pure - used both at write time and at verification time.
  */
 function computeRowHash(row, prevHash) {
   const content = {
@@ -55,7 +55,7 @@ function computeRowHash(row, prevHash) {
 
 /**
  * Verify a chain (array of rows ordered by seq) is intact. Returns
- * { ok, brokenAtSeq }.  Pure — no DB.
+ * { ok, brokenAtSeq }.  Pure - no DB.
  */
 function verifyChain(rows) {
   let prev = '';
@@ -85,7 +85,7 @@ function chainKey(episodeId, patientId) {
 
 /**
  * DEPRECATED (non-atomic). Retained for back-compat / tests only. The live
- * append() path allocates seq atomically via LedgerCounter — do NOT use this
+ * append() path allocates seq atomically via LedgerCounter - do NOT use this
  * to compute a seq for a real write, it races under concurrency.
  */
 async function nextSeqAndPrevHash(episodeId, patientId) {
@@ -151,7 +151,7 @@ async function append(entry) {
 /**
  * Record a clinician override of a prior decision. Append-only: writes a NEW
  * corrective row AND flips the original's `overridden` flag (the one
- * sanctioned mutation — the flag is outside the hashed content so it doesn't
+ * sanctioned mutation - the flag is outside the hashed content so it doesn't
  * break the chain).
  */
 async function recordOverride({ episodeId, patientId, correctsSeq, clinicianId, rationale, kbVersion, rulesVersion }) {

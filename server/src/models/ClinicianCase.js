@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 /**
- * ClinicianCase — opened when Aegis classifies an action RED. The proposed
+ * ClinicianCase - opened when Aegis classifies an action RED. The proposed
  * action is FROZEN (snapshot) and never dispatched until a clinician acts.
  * No autonomous timeout-to-execute: an SLA breach escalates, never
  * auto-approves (fail-closed). Extends the role of MentalHealthNotification
@@ -23,7 +23,7 @@ const clinicianCaseSchema = new mongoose.Schema({
   triggeredFlags: { type: [String], default: [] },
   riskLevel: { type: String, enum: ['low', 'moderate', 'high', 'critical'], default: 'critical' },
 
-  // The frozen proposal — exactly what would have run if not blocked.
+  // The frozen proposal - exactly what would have run if not blocked.
   // inputs/text/confidence are persisted so an APPROVE/MODIFY can re-run the
   // identical proposal back through the Aegis gate (no trust-the-verdict path).
   proposedAction: {

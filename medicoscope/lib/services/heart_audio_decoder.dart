@@ -10,7 +10,7 @@ class DecodedAudio {
   double get durationSeconds => samples.length / sampleRate;
 }
 
-/// Minimal WAV decoder — the `record` package produces 16-bit PCM WAV files
+/// Minimal WAV decoder - the `record` package produces 16-bit PCM WAV files
 /// so that's the primary format we support. Also handles 32-bit float WAV
 /// and mono/stereo.
 class HeartAudioDecoder {

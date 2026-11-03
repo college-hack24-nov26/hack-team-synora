@@ -46,7 +46,7 @@ class _DoctorCopilotScreenState extends State<DoctorCopilotScreen> {
       final r = e.value;
       if (r == null) continue;
       facts.add('${DiseaseRegistry.of(e.key).title}: '
-          '${r.risk.label} risk via ${MethodRegistry.of(r.method).title} — ${r.headline}');
+          '${r.risk.label} risk via ${MethodRegistry.of(r.method).title} - ${r.headline}');
     }
     final lang =
         Provider.of<LocaleProvider>(context, listen: false).languageCode;
@@ -84,7 +84,7 @@ class _DoctorCopilotScreenState extends State<DoctorCopilotScreen> {
       _loading = false;
       _summary = narrative ??
           'Latest screenings:\n${facts.join('\n')}\n\n'
-              '(AI narrative unavailable offline — results above are the raw signals.)';
+              '(AI narrative unavailable offline - results above are the raw signals.)';
     });
     // Use `prompt` variable to avoid unused warning
     if (prompt.isEmpty) {}

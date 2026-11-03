@@ -18,7 +18,7 @@ class ModalityChatFab extends StatelessWidget {
     final accent = disease == null
         ? const Color(0xFF7C4DFF)
         : DiseaseRegistry.of(disease!).gradient.first;
-    // heroTag `null` disables the hero animation entirely — prevents
+    // heroTag `null` disables the hero animation entirely - prevents
     // duplicate-hero-tag crashes when the same FAB is visible across
     // multiple routes simultaneously (nested navigators, bottom sheets).
     return FloatingActionButton.extended(

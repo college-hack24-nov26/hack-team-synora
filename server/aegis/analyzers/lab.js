@@ -1,8 +1,8 @@
 /**
- * Server-side lab analyzer — ported from lib/services/lab_report_analyzer.dart.
+ * Server-side lab analyzer - ported from lib/services/lab_report_analyzer.dart.
  * Regex marker extraction + flag logic against kb_disease_thresholds rows.
  * Heuristic fidelity (real clinical cutoffs, naive extraction; caller supplies
- * text — no OCR here, mirroring the Dart version).
+ * text - no OCR here, mirroring the Dart version).
  */
 
 // Marker name patterns (ported from the Dart _MarkerSpec patterns).

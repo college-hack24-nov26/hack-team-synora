@@ -50,7 +50,7 @@ class _DiseaseVitalsScreenState extends State<DiseaseVitalsScreen> {
   @override
   void initState() {
     super.initState();
-    // Don't auto-start — let the user pick Live or Simulation explicitly.
+    // Don't auto-start - let the user pick Live or Simulation explicitly.
     // Auto-poll still runs every 30 s but only after the user has chosen Live.
     _autoPollTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (_source == _VSource.live) _refresh(silent: true);
@@ -119,7 +119,7 @@ class _DiseaseVitalsScreenState extends State<DiseaseVitalsScreen> {
       setState(() {
         _busy = false;
         _status =
-            'No recent vitals found on your device. Try wearing your watch for a few minutes, then tap Refresh — or use simulation.';
+            'No recent vitals found on your device. Try wearing your watch for a few minutes, then tap Refresh - or use simulation.';
       });
       return;
     }
@@ -133,7 +133,7 @@ class _DiseaseVitalsScreenState extends State<DiseaseVitalsScreen> {
     await _analyze(snapshot, isSimulated: false, silent: silent);
   }
 
-  /// User-triggered refresh — re-reads the watch and re-runs detection.
+  /// User-triggered refresh - re-reads the watch and re-runs detection.
   Future<void> _refresh({bool silent = false}) async {
     if (!silent) setState(() => _refreshing = true);
     try {
@@ -217,7 +217,7 @@ class _DiseaseVitalsScreenState extends State<DiseaseVitalsScreen> {
       headline: base.headline,
       findings: base.findings
           .map((f) =>
-              '${f.name} ${f.value} ${f.unit} (${f.flag}) — ${f.interpretation}')
+              '${f.name} ${f.value} ${f.unit} (${f.flag}) - ${f.interpretation}')
           .toList(),
       language: lang,
     );

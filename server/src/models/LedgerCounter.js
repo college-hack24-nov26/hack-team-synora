@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 /**
- * LedgerCounter — authoritative monotonic sequence allocator for the
+ * LedgerCounter - authoritative monotonic sequence allocator for the
  * decision_audit hash chain. One document per chain:
  *   _id = `ep:<episodeId>`        for an episode-scoped chain
  *   _id = `pt:<patientId>`        for a patient-wide chain (episodeId: null)

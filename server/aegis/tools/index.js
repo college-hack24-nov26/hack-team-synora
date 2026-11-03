@@ -1,5 +1,5 @@
 /**
- * Tool registration — the complete modality surface for MedicoScope Aegis.
+ * Tool registration - the complete modality surface for MedicoScope Aegis.
  *
  * Every envisioned modality is present as a registered tool. Tools backed by
  * real signal/ML or a real external API run for real; tools with no trained
@@ -129,7 +129,7 @@ function registerAll(kb = { thresholds: [] }) {
     {
       id: 'ppg.vitals_bp', modality: 'ppg', kind: 'evidence',
       fidelity: 'partial', execution: 'device->server',
-      honesty: 'Real HR/HRV/peak DSP; BP number is a heuristic fit — screening only.',
+      honesty: 'Real HR/HRV/peak DSP; BP number is a heuristic fit - screening only.',
       inputSchema: { hr: 'number', systolic: 'number', diastolic: 'number' },
       requiresAny: ['systolic', 'diastolic', 'hr'],
     },

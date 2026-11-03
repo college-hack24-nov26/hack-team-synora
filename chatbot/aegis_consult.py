@@ -15,7 +15,7 @@ Design guarantees that keep it demo-safe:
     (that's the deterministic Aegis gate) and NEVER executes actions.
   - The planner uses Groq/Llama (GROQ_API_KEY). If it is missing or the call
     fails, a DETERMINISTIC keyword planner
-    runs instead — the consult always completes, never hard-breaks a demo.
+    runs instead - the consult always completes, never hard-breaks a demo.
 """
 import os
 import json
@@ -29,7 +29,7 @@ from pydantic import BaseModel
 NODE_API = os.getenv("BACKEND_URL", "https://medicoscope-api-lbto.onrender.com/api")
 
 # The agent's PLANNER uses Groq/Llama (same provider as the rest of the app).
-# It only refines triage/planning — it NEVER decides safety (that's the
+# It only refines triage/planning - it NEVER decides safety (that's the
 # deterministic Aegis gate) and never executes actions. If Groq is unavailable
 # the deterministic keyword planner runs instead, so the consult never breaks.
 GROQ_KEY = os.getenv("GROQ_API_KEY")
@@ -214,12 +214,12 @@ async def _fetch_saved_results(client: httpx.AsyncClient, token: str, patient_id
 
 def _fuse(observations: list[dict]) -> dict:
     """Confidence-weighted fusion per disease + a CROSS-MODALITY CONCORDANCE
-    score — the thing a single-modality app structurally cannot produce.
+    score - the thing a single-modality app structurally cannot produce.
 
     Concordance = how strongly multiple INDEPENDENT modalities agree on the
     same disease. When several distinct signals (e.g. lab HbA1c + retinal photo
     + wearable vitals) all flag diabetes, the finding is far more trustworthy
-    than any one of them alone — and we say so, with an honest number, instead
+    than any one of them alone - and we say so, with an honest number, instead
     of just taking the loudest signal.
     """
     by_disease: dict[str, list[dict]] = {}
@@ -234,7 +234,7 @@ def _fuse(observations: list[dict]) -> dict:
 
     # Only REAL evidence counts. A tool that had no data (unavailable /
     # skipped_no_data) or errored is NOT a modality and must never inflate the
-    # assessment — this is the honesty fix.
+    # assessment - this is the honesty fix.
     _dead = {"unavailable", "error", "skipped_no_data"}
     for disease, obs in by_disease.items():
         usable = [o for o in obs if o.get("status") not in _dead]
@@ -246,7 +246,7 @@ def _fuse(observations: list[dict]) -> dict:
             conflicts.append(disease)
 
         # Count DISTINCT modalities (independent evidence sources), not just
-        # observations — two readings from the same modality aren't independent.
+        # observations - two readings from the same modality aren't independent.
         modalities = {o.get("modality") or o.get("method") or "unknown" for o in usable}
         n_modalities = len(modalities)
 
@@ -284,7 +284,7 @@ def _fuse(observations: list[dict]) -> dict:
     has_symptom = any((o.get("modality") or "") == "symptom" for o in all_usable)
 
     if not all_usable:
-        # Nothing real to go on. Do NOT claim "low risk" — say so plainly.
+        # Nothing real to go on. Do NOT claim "low risk" - say so plainly.
         return {"assessments": {}, "conflicts": [], "overall_risk": "not_assessed",
                 "data_basis": "insufficient", "has_real_evidence": False}
 

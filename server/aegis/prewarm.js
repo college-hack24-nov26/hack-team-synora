@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Aegis demo pre-warm — keeps the three Render free-tier services hot so they
+ * Aegis demo pre-warm - keeps the three Render free-tier services hot so they
  * never cold-start (~50s spin-up) in the middle of a live demo.
  *
  * Pings all three health endpoints on an interval. Run it from the demo
@@ -10,7 +10,7 @@
  *   node server/aegis/prewarm.js --once       # single ping (CI / manual check)
  *   node server/aegis/prewarm.js --interval 180   # custom seconds
  *
- * Exit code of --once is non-zero if any service is unhealthy — useful as a
+ * Exit code of --once is non-zero if any service is unhealthy - useful as a
  * pre-demo go/no-go gate.
  */
 
@@ -41,7 +41,7 @@ async function ping(svc) {
     const cold = ms > 8000; // heuristic: slow response => was spinning up
     console.log(
       `[${stamp()}] ${ok ? '✓' : '✗'} ${svc.name.padEnd(12)} ${res.status} ${ms}ms` +
-      (cold ? '  (was cold — now warm)' : '')
+      (cold ? '  (was cold - now warm)' : '')
     );
     return ok;
   } catch (err) {
@@ -59,7 +59,7 @@ async function round() {
 (async () => {
   if (once) {
     const allOk = await round();
-    console.log(allOk ? '\nAll services healthy — clear to demo.' : '\nSome services unhealthy — wait and re-run before demoing.');
+    console.log(allOk ? '\nAll services healthy - clear to demo.' : '\nSome services unhealthy - wait and re-run before demoing.');
     process.exit(allOk ? 0 : 1);
   }
 

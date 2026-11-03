@@ -9,21 +9,21 @@ class DemoModeService {
   static Future<void> loadHighRiskProfile() async {
     await _clearAll();
 
-    // Diabetes — HIGH (PDF + fundus + vitals)
+    // Diabetes - HIGH (PDF + fundus + vitals)
     await DiseaseRiskStore.save(DiseaseRiskResult(
       disease: DiseaseType.diabetes,
       method: DetectionMethod.labReportPdf,
       risk: RiskLevel.high,
       score: 0.72,
       headline:
-          'Report indicates HIGH risk for diabetes — HbA1c 8.1%, FBS 168 mg/dL.',
+          'Report indicates HIGH risk for diabetes - HbA1c 8.1%, FBS 168 mg/dL.',
       findings: const [
         MarkerFinding(
           name: 'HbA1c',
           value: '8.1',
           unit: '%',
           referenceRange:
-              '< 5.7% normal • 5.7–6.4% prediabetes • ≥ 6.5% diabetes',
+              '< 5.7% normal • 5.7-6.4% prediabetes • ≥ 6.5% diabetes',
           flag: 'high',
           interpretation: 'Diabetic range per ADA / ICMR thresholds',
         ),
@@ -32,7 +32,7 @@ class DemoModeService {
           value: '168',
           unit: 'mg/dL',
           referenceRange:
-              '70–99 normal • 100–125 prediabetes • ≥ 126 diabetes mg/dL',
+              '70-99 normal • 100-125 prediabetes • ≥ 126 diabetes mg/dL',
           flag: 'high',
           interpretation: 'Diabetic range (ADA)',
         ),
@@ -41,7 +41,7 @@ class DemoModeService {
           value: '234',
           unit: 'mg/dL',
           referenceRange:
-              '< 140 normal • 140–199 prediabetes • ≥ 200 diabetes mg/dL',
+              '< 140 normal • 140-199 prediabetes • ≥ 200 diabetes mg/dL',
           flag: 'high',
           interpretation: 'Diabetic range (ADA)',
         ),
@@ -55,7 +55,7 @@ class DemoModeService {
         'URGENT: Book an in-person consult with a Diabetes specialist',
         'Maintain a glycemic-controlled diet (low-GI carbs, adequate protein)',
         'Daily 30-minute moderate activity (walking / cycling)',
-        'Repeat HbA1c every 3–6 months',
+        'Repeat HbA1c every 3-6 months',
       ],
       dataSource: 'ADA Standards of Care + ICMR-INDIAB thresholds',
       timestamp: DateTime.now().subtract(const Duration(hours: 3)),
@@ -65,7 +65,7 @@ class DemoModeService {
           'within the next week to start or adjust medication.',
     ));
 
-    // Hypertension — CRITICAL (PPG-BP)
+    // Hypertension - CRITICAL (PPG-BP)
     await DiseaseRiskStore.save(DiseaseRiskResult(
       disease: DiseaseType.hypertension,
       method: DetectionMethod.ppgBloodPressure,
@@ -94,7 +94,7 @@ class DemoModeService {
           name: 'Pulse Rate (PPG)',
           value: '92',
           unit: 'bpm',
-          referenceRange: '60–100 bpm resting',
+          referenceRange: '60-100 bpm resting',
           flag: 'normal',
           interpretation: 'Normal heart rate',
         ),
@@ -110,7 +110,7 @@ class DemoModeService {
         'Reduce sodium, manage stress, 30-min daily walk.',
       ],
       dataSource:
-          'PPG-BP regression (Wu 2009 / Teng 2003) — MIMIC-III calibrated',
+          'Camera PPG: band-pass + FFT + morphology features, personally calibrated - screening-grade (±10 mmHg)',
       timestamp: DateTime.now().subtract(const Duration(minutes: 18)),
       llmExplanation:
           'Your cuff-less estimate of 154/96 mmHg is in stage 2 hypertension '
@@ -118,13 +118,13 @@ class DemoModeService {
           'follow-up this week.',
     ));
 
-    // Anemia — MODERATE (conjunctival pallor)
+    // Anemia - MODERATE (conjunctival pallor)
     await DiseaseRiskStore.save(DiseaseRiskResult(
       disease: DiseaseType.anemia,
       method: DetectionMethod.conjunctivalPallor,
       risk: RiskLevel.moderate,
       score: 0.42,
-      headline: 'Mild pallor — possible mild anaemia',
+      headline: 'Mild pallor - possible mild anaemia',
       findings: const [
         MarkerFinding(
           name: 'Estimated Hb',
@@ -132,7 +132,7 @@ class DemoModeService {
           unit: 'g/dL',
           referenceRange: 'Men ≥ 13 • Women ≥ 12 (WHO)',
           flag: 'low',
-          interpretation: 'Mild pallor — possible mild anaemia',
+          interpretation: 'Mild pallor - possible mild anaemia',
         ),
         MarkerFinding(
           name: 'R/G redness ratio',
@@ -148,7 +148,7 @@ class DemoModeService {
           unit: '%',
           referenceRange: '> 40% healthy conjunctiva',
           flag: 'low',
-          interpretation: 'Muted colour saturation — classic anaemia sign',
+          interpretation: 'Muted colour saturation - classic anaemia sign',
         ),
       ],
       topContributors: [
@@ -159,14 +159,14 @@ class DemoModeService {
       recommendations: const [
         'Include iron-rich foods (leafy greens, pulses, jaggery, red meat).',
         'Vitamin C with meals boosts iron absorption.',
-        'Re-scan after 4–6 weeks of dietary change to track improvement.',
+        'Re-scan after 4-6 weeks of dietary change to track improvement.',
       ],
       dataSource:
           'Emory University smartphone-anemia method + AIIMS validation + WHO cutoffs',
       timestamp: DateTime.now().subtract(const Duration(hours: 9)),
       llmExplanation:
           'The photograph of your inner eyelid suggests mild pallor consistent '
-          'with a haemoglobin around 11 g/dL. This is an early sign — confirm '
+          'with a haemoglobin around 11 g/dL. This is an early sign - confirm '
           'with a CBC and start iron-rich foods.',
     ));
   }
@@ -186,7 +186,7 @@ class DemoModeService {
           value: '5.2',
           unit: '%',
           referenceRange:
-              '< 5.7% normal • 5.7–6.4% prediabetes • ≥ 6.5% diabetes',
+              '< 5.7% normal • 5.7-6.4% prediabetes • ≥ 6.5% diabetes',
           flag: 'normal',
           interpretation: 'Normal glycemic control',
         ),
@@ -195,7 +195,7 @@ class DemoModeService {
           value: '92',
           unit: 'mg/dL',
           referenceRange:
-              '70–99 normal • 100–125 prediabetes • ≥ 126 diabetes mg/dL',
+              '70-99 normal • 100-125 prediabetes • ≥ 126 diabetes mg/dL',
           flag: 'normal',
           interpretation: 'Normal fasting glucose',
         ),
@@ -204,7 +204,7 @@ class DemoModeService {
       recommendations: const [
         'Maintain a glycemic-controlled diet (low-GI carbs, adequate protein)',
         'Daily 30-minute moderate activity (walking / cycling)',
-        'Repeat HbA1c every 3–6 months',
+        'Repeat HbA1c every 3-6 months',
       ],
       dataSource: 'ADA Standards of Care + ICMR-INDIAB thresholds',
       timestamp: DateTime.now().subtract(const Duration(days: 2)),

@@ -85,7 +85,7 @@ class _ImageScreeningScreenState extends State<ImageScreeningScreen> {
       headline: base.headline,
       findings: base.findings
           .map((f) =>
-              '${f.name} ${f.value} ${f.unit} (${f.flag}) — ${f.interpretation}')
+              '${f.name} ${f.value} ${f.unit} (${f.flag}) - ${f.interpretation}')
           .toList(),
       language: lang,
     );

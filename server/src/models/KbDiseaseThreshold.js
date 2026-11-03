@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 /**
  * Per-marker clinical thresholds, ported verbatim from the on-device Dart
  * analyzers (lab_report_analyzer.dart) so the server is the single, versioned
- * source of truth. Every threshold carries the guideline it came from — these
+ * source of truth. Every threshold carries the guideline it came from - these
  * are real ADA / WHO / AHA / ICMR cutoffs, not invented numbers.
  *
  * Flag logic (matches the Dart engine, _flagFor):

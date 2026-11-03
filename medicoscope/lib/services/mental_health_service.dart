@@ -179,7 +179,7 @@ class MentalHealthService {
         'coinsCost': coinsCost,
       });
     } catch (_) {
-      // Silently fail — reward was already displayed
+      // Silently fail - reward was already displayed
     }
   }
 

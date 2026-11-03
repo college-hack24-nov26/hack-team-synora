@@ -61,7 +61,7 @@ class _VitalsScreenState extends State<VitalsScreen>
         _fetchLocation().timeout(const Duration(seconds: 8), onTimeout: () {}),
       ]);
     } catch (_) {
-      // Never block — proceed with defaults
+      // Never block - proceed with defaults
     }
     _infoReady = true;
     if (mounted) setState(() {});

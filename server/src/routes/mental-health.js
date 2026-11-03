@@ -8,7 +8,7 @@ const router = express.Router();
 // Map a mental-health urgency to a risk level the Aegis gate understands.
 const URGENCY_TO_RISK = { low: 'low', moderate: 'moderate', high: 'critical' };
 
-// POST /api/mental-health/notifications — save notification.
+// POST /api/mental-health/notifications - save notification.
 // Auth REQUIRED: the chatbot forwards the signed-in user's bearer token (see
 // chatbot/main.py). Without this, any unauthenticated caller could drive the
 // Aegis gate and open RED suicidal-ideation cases for arbitrary patient/doctor
@@ -76,7 +76,7 @@ router.post('/notifications', auth, async (req, res) => {
   }
 });
 
-// GET /api/mental-health/notifications/:doctorId — get notifications for doctor (auth required)
+// GET /api/mental-health/notifications/:doctorId - get notifications for doctor (auth required)
 router.get('/notifications/:doctorId', auth, async (req, res) => {
   try {
     // A doctor may only read their OWN notifications (admins may read any).
@@ -115,7 +115,7 @@ router.get('/notifications/:doctorId', auth, async (req, res) => {
   }
 });
 
-// PUT /api/mental-health/notifications/:id/read — mark notification as read.
+// PUT /api/mental-health/notifications/:id/read - mark notification as read.
 // Ownership enforced in the query filter so a doctor can only mark their OWN
 // notification read (admins may mark any).
 router.put('/notifications/:id/read', auth, async (req, res) => {
@@ -133,7 +133,7 @@ router.put('/notifications/:id/read', auth, async (req, res) => {
   }
 });
 
-// PUT /api/mental-health/notifications/:id/ack — patient acknowledges a
+// PUT /api/mental-health/notifications/:id/ack - patient acknowledges a
 // notification (e.g. saw the doctor's appointment response). Owner-scoped so a
 // patient can only ack their own; keeps read/ack state in Mongo, not local-only.
 router.put('/notifications/:id/ack', auth, async (req, res) => {
@@ -153,7 +153,7 @@ router.put('/notifications/:id/ack', auth, async (req, res) => {
   }
 });
 
-// GET /api/mental-health/notifications/unread-count/:doctorId — get unread count
+// GET /api/mental-health/notifications/unread-count/:doctorId - get unread count
 router.get('/notifications/unread-count/:doctorId', auth, async (req, res) => {
   try {
     if (req.user.role !== 'admin' && req.params.doctorId !== req.user._id.toString()) {
@@ -169,7 +169,7 @@ router.get('/notifications/unread-count/:doctorId', auth, async (req, res) => {
   }
 });
 
-// DELETE /api/mental-health/notifications/:id — delete a notification (doctor only)
+// DELETE /api/mental-health/notifications/:id - delete a notification (doctor only)
 router.delete('/notifications/:id', auth, async (req, res) => {
   try {
     const notification = await MentalHealthNotification.findById(req.params.id);

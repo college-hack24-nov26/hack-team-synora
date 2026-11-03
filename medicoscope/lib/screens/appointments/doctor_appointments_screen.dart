@@ -36,7 +36,7 @@ class _DoctorAppointment {
 }
 
 /// Doctor-side "My Appointments" screen. Shows every appointment request
-/// from patients — pending at the top, then recently confirmed /
+/// from patients - pending at the top, then recently confirmed /
 /// rescheduled ones. Each card has Confirm / Reschedule buttons for
 /// pending requests (same as the notifications screen, but surfaced in
 /// one dedicated deck for convenience).
@@ -575,7 +575,7 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '$label — ${a.patientName}',
+                    '$label - ${a.patientName}',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,

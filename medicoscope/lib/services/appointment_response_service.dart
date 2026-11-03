@@ -85,7 +85,7 @@ class AppointmentResponse {
 ///
 /// Uses the existing `/mental-health/notifications` endpoint as a generic
 /// notification bus by flipping the `doctorId` field to the *patient's*
-/// user id (the field is a recipient id — not strictly a doctor).
+/// user id (the field is a recipient id - not strictly a doctor).
 /// Downstream, the Node backend stores one notification keyed by the
 /// recipient; the patient's app polls their own id to pick it up.
 class AppointmentResponseService {
@@ -158,7 +158,7 @@ class AppointmentResponseService {
             body: jsonEncode({
               // The recipient of this notification is the patient. We keep
               // the field name `doctorId` because that's what the backend
-              // schema still calls it — it's the *routing id*, not a role.
+              // schema still calls it - it's the *routing id*, not a role.
               'doctorId': recipientId,
               'patientId': doctorId,
               'patientName': patientName,
@@ -170,11 +170,11 @@ class AppointmentResponseService {
           )
           .timeout(const Duration(seconds: 12));
     } catch (_) {
-      // Offline-tolerant — the backend will retry on next poll.
+      // Offline-tolerant - the backend will retry on next poll.
     }
   }
 
-  // ── Patient side — local cache + read tracking ──────────────────────────
+  // ── Patient side - local cache + read tracking ──────────────────────────
 
   static const _key = 'appointment_responses_local';
 
@@ -214,7 +214,7 @@ class AppointmentResponseService {
   static Future<int> unreadCount() async =>
       (await getAll()).where((r) => !r.read).length;
 
-  static Future<void> markRead(String id) async {
+  static Future<void> markRead(String id, {String? authToken}) async {
     final prefs = await SharedPreferences.getInstance();
     final list = prefs.getStringList(_key) ?? const [];
     final updated = <String>[];
@@ -230,6 +230,20 @@ class AppointmentResponseService {
       }
     }
     await prefs.setStringList(_key, updated);
+
+    // Persist the acknowledgement to MongoDB so read-state follows the patient
+    // across devices (these ids are the backend notification ids). Best-effort.
+    if (authToken != null) {
+      try {
+        await http
+            .put(
+              Uri.parse(
+                  '${ApiConstants.baseUrl}/mental-health/notifications/$id/ack'),
+              headers: {'Authorization': 'Bearer $authToken'},
+            )
+            .timeout(const Duration(seconds: 10));
+      } catch (_) {}
+    }
   }
 
   /// Fetch all doctor responses routed to [patientId]. Uses the shared

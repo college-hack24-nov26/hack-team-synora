@@ -7,7 +7,7 @@ import 'package:medicoscope/services/disease_risk_store.dart';
 ///
 /// Recommendations are ONLY produced for risk levels `moderate`, `high`,
 /// and `critical`. Low-risk (normal) screenings do NOT trigger any
-/// specialty suggestion — an all-normal patient gets no recommendation
+/// specialty suggestion - an all-normal patient gets no recommendation
 /// chips, because there's no clinical reason to push them to a doctor.
 class SpecialtyRecommender {
   static const Map<DiseaseType, List<String>> diseaseToSpecialties = {
@@ -24,7 +24,7 @@ class SpecialtyRecommender {
     ],
     DiseaseType.anemia: [
       'Hematologist',
-      // Gynecologist intentionally excluded from the default list —
+      // Gynecologist intentionally excluded from the default list -
       // it was pushing up for male users. It's only added when we have
       // gender context indicating a female patient (see _specsFor).
       'General Physician',
@@ -86,7 +86,7 @@ class SpecialtyRecommender {
     return base;
   }
 
-  /// Best single specialty to search first — returns 'General Physician' if
+  /// Best single specialty to search first - returns 'General Physician' if
   /// nothing actionable has been screened.
   static Future<String> topSpecialty({bool? isFemale}) async {
     final list = await recommend(isFemale: isFemale);
@@ -111,11 +111,11 @@ class SpecialtyRecommender {
     final name = DiseaseRegistry.of(d).title;
     switch (r) {
       case RiskLevel.critical:
-        return 'Critical $name signal — book urgently';
+        return 'Critical $name signal - book urgently';
       case RiskLevel.high:
         return 'High $name risk in recent screening';
       case RiskLevel.moderate:
-        return 'Moderate $name risk — advisable';
+        return 'Moderate $name risk - advisable';
       case RiskLevel.low:
         return 'Preventive $name follow-up';
     }

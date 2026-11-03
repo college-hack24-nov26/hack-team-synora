@@ -36,7 +36,7 @@ class Hospital {
 }
 
 /// Hospital search service. Uses Nominatim (OpenStreetMap's geocoder) which
-/// has far better coverage than raw Overpass tag queries — Nominatim's
+/// has far better coverage than raw Overpass tag queries - Nominatim's
 /// free-text search hits any POI whose name / category contains the keyword
 /// without requiring a specific OSM tag.
 ///
@@ -69,7 +69,7 @@ class OverpassHospitalsService {
   }) async {
     final viewbox = _viewboxAround(center, radiusMeters);
 
-    // Serialise the queries — Nominatim's public endpoint enforces a
+    // Serialise the queries - Nominatim's public endpoint enforces a
     // 1 req/sec policy per IP, so parallel bursts get rate-limited.
     final queries = <String>[
       'hospital',
@@ -236,7 +236,7 @@ class _RawPlace {
     final cls = j['class']?.toString() ?? '';
     final type = j['type']?.toString() ?? '';
     // Filter out non-medical hits (Nominatim free-text can return schools
-    // that happen to have "medical" in the name — we keep only the relevant
+    // that happen to have "medical" in the name - we keep only the relevant
     // amenity classes).
     const medicalTypes = {
       'hospital',

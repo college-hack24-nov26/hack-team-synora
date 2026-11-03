@@ -1,5 +1,5 @@
 /**
- * Red-flag detection — pure, deterministic evaluation of structured inputs +
+ * Red-flag detection - pure, deterministic evaluation of structured inputs +
  * free text against the kb_red_flags rule set. NEVER LLM-arbitrated.
  *
  * `rules` is the array of KbRedFlag docs (passed in, so this stays pure and
@@ -27,7 +27,7 @@ function keywordsTrip(rule, text) {
   if (!text || !Array.isArray(rule.keywordGroups)) return false;
   const hay = String(text).toLowerCase();
   // Every group must have at least one keyword present (AND across groups,
-  // OR within a group) — e.g. (chest pain) AND (dyspnea).
+  // OR within a group) - e.g. (chest pain) AND (dyspnea).
   return rule.keywordGroups.every(group =>
     group.some(kw => hay.includes(String(kw).toLowerCase()))
   );

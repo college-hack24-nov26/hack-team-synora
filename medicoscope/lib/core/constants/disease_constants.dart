@@ -157,7 +157,7 @@ class DiseaseRegistry {
           'Anemia is reduced hemoglobin or red blood cell count, often from iron '
           'deficiency. MedicoScope screens via lab report (CBC, ferritin), symptoms, '
           'vitals (SpO₂ + resting HR), and conjunctival pallor analysis '
-          '(photograph the inner eyelid — research-grade non-invasive Hb estimation).',
+          '(photograph the inner eyelid - research-grade non-invasive Hb estimation).',
       icon: Icons.water_drop_outlined,
       gradient: [Color(0xFFFF8C61), Color(0xFFFF6B35)],
       methods: [
@@ -219,7 +219,7 @@ class MethodRegistry {
   static const Map<DetectionMethod, MethodMeta> meta = {
     DetectionMethod.labReportPdf: MethodMeta(
       title: 'Lab Report Scanner',
-      subtitle: 'Upload your pathlab PDF — we parse the markers',
+      subtitle: 'Upload your pathlab PDF - we parse the markers',
       icon: Icons.picture_as_pdf_outlined,
       gradient: [Color(0xFF4ECDC4), Color(0xFF44A08D)],
     ),
@@ -231,7 +231,7 @@ class MethodRegistry {
     ),
     DetectionMethod.vitalsWearable: MethodMeta(
       title: 'Vitals / Smartwatch',
-      subtitle: 'Live data from your wearable — simulation fallback',
+      subtitle: 'Live data from your wearable - simulation fallback',
       icon: Icons.watch_outlined,
       gradient: [Color(0xFF667EEA), Color(0xFF764BA2)],
     ),
@@ -249,7 +249,7 @@ class MethodRegistry {
     ),
     DetectionMethod.ppgBloodPressure: MethodMeta(
       title: 'Cuff-less BP',
-      subtitle: 'Place finger on camera — PPG estimates BP',
+      subtitle: 'Place finger on camera - PPG estimates BP',
       icon: Icons.fingerprint,
       gradient: [Color(0xFF8E2DE2), Color(0xFF4A00E0)],
     ),

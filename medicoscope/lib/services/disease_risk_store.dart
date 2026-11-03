@@ -40,7 +40,7 @@ class DiseaseRiskStore {
     return all.isEmpty ? null : all.first;
   }
 
-  /// All diseases in one shot — used by the unified dashboard.
+  /// All diseases in one shot - used by the unified dashboard.
   static Future<Map<DiseaseType, DiseaseRiskResult?>> latestAll() async {
     final out = <DiseaseType, DiseaseRiskResult?>{};
     for (final d in DiseaseType.values) {
@@ -60,7 +60,7 @@ class DiseaseRiskStore {
       lines.add(
         '${DiseaseRegistry.of(entry.key).title}: '
         '${r.risk.label} risk (score ${(r.score * 100).toStringAsFixed(0)}%) '
-        'via ${MethodRegistry.of(r.method).title} — ${r.headline}',
+        'via ${MethodRegistry.of(r.method).title} - ${r.headline}',
       );
     }
     if (lines.isEmpty) return '';

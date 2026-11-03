@@ -4,7 +4,7 @@ const Rewards = require('../models/Rewards');
 
 const router = express.Router();
 
-// GET /api/rewards — get user rewards data
+// GET /api/rewards - get user rewards data
 router.get('/', auth, async (req, res) => {
   try {
     let rewards = await Rewards.findOne({ userId: req.user._id }).lean();
@@ -29,11 +29,11 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// PUT /api/rewards — sync/update rewards from client.
+// PUT /api/rewards - sync/update rewards from client.
 //
 // Loss-proof sync: monotonic fields (totalCoins, totalSessions, longestStreak)
 // are merged with $max so an out-of-order or stale write from a second device
-// can NEVER lower an accumulated total — the root cause of cross-device coin
+// can NEVER lower an accumulated total - the root cause of cross-device coin
 // divergence. Streak/claim/date fields are $set to the latest reported value.
 // This makes the server safe regardless of client send order, complementing
 // the client's "whichever is higher" load logic.

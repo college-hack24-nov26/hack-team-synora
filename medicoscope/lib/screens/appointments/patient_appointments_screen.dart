@@ -55,7 +55,7 @@ class _PatientAppointmentsScreenState
       patientId: user.id,
       token: auth.token!,
     );
-    final pending = await AppointmentService.getAll();
+    final pending = await AppointmentService.getAll(authToken: auth.token);
 
     if (!mounted) return;
     setState(() {
@@ -370,7 +370,8 @@ class _PatientAppointmentsScreenState
 
   Future<void> _openResponseDetail(AppointmentResponse r) async {
     if (!r.read) {
-      await AppointmentResponseService.markRead(r.id);
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      await AppointmentResponseService.markRead(r.id, authToken: auth.token);
       _refresh(silent: true);
     }
   }
@@ -396,7 +397,7 @@ class _PatientAppointmentsScreenState
             ),
             const SizedBox(height: 6),
             Text(
-              'Book one from any disease deck or the chatbot — confirmations will show up here.',
+              'Book one from any disease deck or the chatbot - confirmations will show up here.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12,

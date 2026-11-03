@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 /**
- * Red-flag rules — the deterministic triggers that force the Aegis gate to
+ * Red-flag rules - the deterministic triggers that force the Aegis gate to
  * RED (hard block + synchronous clinician review). These are NEVER arbitrated
  * by the LLM; the rule table decides. Sourced from the spec §4.2 and the live
  * threshold engine (chatbot/main.py _check_alerts + vitals_analyzer.dart).

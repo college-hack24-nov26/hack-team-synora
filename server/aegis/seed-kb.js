@@ -28,24 +28,24 @@ const DRY = process.argv.includes('--dry');
 // ── Disease marker thresholds (from lab_report_analyzer.dart) ────────────────
 const thresholds = [
   // Diabetes
-  { disease: 'diabetes', markerKey: 'hba1c', display: 'HbA1c', unit: '%', referenceRange: '< 5.7% normal • 5.7–6.4% prediabetes • ≥ 6.5% diabetes', highWarn: 5.7, highCritical: 9.0, weight: 0.55, guideline: 'ADA/ICMR' },
-  { disease: 'diabetes', markerKey: 'fbs', display: 'Fasting Blood Sugar', unit: 'mg/dL', referenceRange: '70–99 normal • 100–125 prediabetes • ≥ 126 diabetes', lowCutoff: 70, highWarn: 100, highCritical: 200, weight: 0.55, guideline: 'ADA' },
-  { disease: 'diabetes', markerKey: 'ppbs', display: 'Postprandial Blood Sugar', unit: 'mg/dL', referenceRange: '< 140 normal • 140–199 prediabetes • ≥ 200 diabetes', highWarn: 140, highCritical: 200, weight: 0.55, guideline: 'ADA' },
+  { disease: 'diabetes', markerKey: 'hba1c', display: 'HbA1c', unit: '%', referenceRange: '< 5.7% normal • 5.7-6.4% prediabetes • ≥ 6.5% diabetes', highWarn: 5.7, highCritical: 9.0, weight: 0.55, guideline: 'ADA/ICMR' },
+  { disease: 'diabetes', markerKey: 'fbs', display: 'Fasting Blood Sugar', unit: 'mg/dL', referenceRange: '70-99 normal • 100-125 prediabetes • ≥ 126 diabetes', lowCutoff: 70, highWarn: 100, highCritical: 200, weight: 0.55, guideline: 'ADA' },
+  { disease: 'diabetes', markerKey: 'ppbs', display: 'Postprandial Blood Sugar', unit: 'mg/dL', referenceRange: '< 140 normal • 140-199 prediabetes • ≥ 200 diabetes', highWarn: 140, highCritical: 200, weight: 0.55, guideline: 'ADA' },
   { disease: 'diabetes', markerKey: 'rbs', display: 'Random Blood Sugar', unit: 'mg/dL', referenceRange: '< 200 mg/dL', highWarn: 140, highCritical: 200, weight: 0.55, guideline: 'ADA' },
   // Hypertension
-  { disease: 'hypertension', markerKey: 'systolic_bp', display: 'Systolic BP', unit: 'mmHg', referenceRange: '< 120 normal • 120–129 elevated • 130–139 stage 1 • ≥ 140 stage 2', lowCutoff: 90, highWarn: 130, highCritical: 180, weight: 0.55, guideline: 'AHA/ACC 2017' },
-  { disease: 'hypertension', markerKey: 'diastolic_bp', display: 'Diastolic BP', unit: 'mmHg', referenceRange: '< 80 normal • 80–89 stage 1 • ≥ 90 stage 2', lowCutoff: 60, highWarn: 80, highCritical: 120, weight: 0.55, guideline: 'AHA/ACC 2017' },
-  { disease: 'hypertension', markerKey: 'total_cholesterol', display: 'Total Cholesterol', unit: 'mg/dL', referenceRange: '< 200 desirable • 200–239 borderline • ≥ 240 high', highWarn: 200, highCritical: 240, weight: 0.55, guideline: 'AHA/ACC' },
-  { disease: 'hypertension', markerKey: 'ldl', display: 'LDL Cholesterol', unit: 'mg/dL', referenceRange: '< 100 optimal • 100–129 near optimal • ≥ 160 high', highWarn: 130, highCritical: 160, weight: 0.55, guideline: 'AHA/ACC' },
-  { disease: 'hypertension', markerKey: 'creatinine', display: 'Serum Creatinine', unit: 'mg/dL', referenceRange: '0.6–1.3 mg/dL (adults)', highWarn: 1.3, highCritical: 2.0, weight: 0.55, guideline: 'KDIGO' },
-  { disease: 'hypertension', markerKey: 'sodium', display: 'Sodium', unit: 'mmol/L', referenceRange: '135–145 mmol/L', lowCutoff: 135, highWarn: 145, highCritical: 160, weight: 0.55, guideline: 'reference' },
+  { disease: 'hypertension', markerKey: 'systolic_bp', display: 'Systolic BP', unit: 'mmHg', referenceRange: '< 120 normal • 120-129 elevated • 130-139 stage 1 • ≥ 140 stage 2', lowCutoff: 90, highWarn: 130, highCritical: 180, weight: 0.55, guideline: 'AHA/ACC 2017' },
+  { disease: 'hypertension', markerKey: 'diastolic_bp', display: 'Diastolic BP', unit: 'mmHg', referenceRange: '< 80 normal • 80-89 stage 1 • ≥ 90 stage 2', lowCutoff: 60, highWarn: 80, highCritical: 120, weight: 0.55, guideline: 'AHA/ACC 2017' },
+  { disease: 'hypertension', markerKey: 'total_cholesterol', display: 'Total Cholesterol', unit: 'mg/dL', referenceRange: '< 200 desirable • 200-239 borderline • ≥ 240 high', highWarn: 200, highCritical: 240, weight: 0.55, guideline: 'AHA/ACC' },
+  { disease: 'hypertension', markerKey: 'ldl', display: 'LDL Cholesterol', unit: 'mg/dL', referenceRange: '< 100 optimal • 100-129 near optimal • ≥ 160 high', highWarn: 130, highCritical: 160, weight: 0.55, guideline: 'AHA/ACC' },
+  { disease: 'hypertension', markerKey: 'creatinine', display: 'Serum Creatinine', unit: 'mg/dL', referenceRange: '0.6-1.3 mg/dL (adults)', highWarn: 1.3, highCritical: 2.0, weight: 0.55, guideline: 'KDIGO' },
+  { disease: 'hypertension', markerKey: 'sodium', display: 'Sodium', unit: 'mmol/L', referenceRange: '135-145 mmol/L', lowCutoff: 135, highWarn: 145, highCritical: 160, weight: 0.55, guideline: 'reference' },
   // Anemia
   { disease: 'anemia', markerKey: 'hemoglobin', display: 'Hemoglobin', unit: 'g/dL', referenceRange: 'Men ≥ 13 • Women ≥ 12 • Severe < 8 g/dL (WHO)', lowCritical: 8.0, lowCutoff: 12.0, weight: 0.55, guideline: 'WHO' },
-  { disease: 'anemia', markerKey: 'mcv', display: 'MCV', unit: 'fL', referenceRange: '80–100 fL', lowCutoff: 80, highWarn: 100, weight: 0.55, guideline: 'reference' },
-  { disease: 'anemia', markerKey: 'mch', display: 'MCH', unit: 'pg', referenceRange: '27–33 pg', lowCutoff: 27, highWarn: 33, weight: 0.55, guideline: 'reference' },
-  { disease: 'anemia', markerKey: 'ferritin', display: 'Ferritin', unit: 'ng/mL', referenceRange: 'Men 24–336 • Women 11–307 ng/mL', lowCritical: 10, lowCutoff: 15, highWarn: 300, weight: 0.55, guideline: 'WHO' },
-  { disease: 'anemia', markerKey: 'rbc', display: 'RBC Count', unit: 'million/µL', referenceRange: 'Men 4.7–6.1 • Women 4.2–5.4', lowCritical: 3.5, lowCutoff: 4.2, weight: 0.55, guideline: 'reference' },
-  { disease: 'anemia', markerKey: 'hct', display: 'Hematocrit', unit: '%', referenceRange: 'Men 41–50 • Women 36–44 %', lowCritical: 30, lowCutoff: 36, weight: 0.55, guideline: 'reference' },
+  { disease: 'anemia', markerKey: 'mcv', display: 'MCV', unit: 'fL', referenceRange: '80-100 fL', lowCutoff: 80, highWarn: 100, weight: 0.55, guideline: 'reference' },
+  { disease: 'anemia', markerKey: 'mch', display: 'MCH', unit: 'pg', referenceRange: '27-33 pg', lowCutoff: 27, highWarn: 33, weight: 0.55, guideline: 'reference' },
+  { disease: 'anemia', markerKey: 'ferritin', display: 'Ferritin', unit: 'ng/mL', referenceRange: 'Men 24-336 • Women 11-307 ng/mL', lowCritical: 10, lowCutoff: 15, highWarn: 300, weight: 0.55, guideline: 'WHO' },
+  { disease: 'anemia', markerKey: 'rbc', display: 'RBC Count', unit: 'million/µL', referenceRange: 'Men 4.7-6.1 • Women 4.2-5.4', lowCritical: 3.5, lowCutoff: 4.2, weight: 0.55, guideline: 'reference' },
+  { disease: 'anemia', markerKey: 'hct', display: 'Hematocrit', unit: '%', referenceRange: 'Men 41-50 • Women 36-44 %', lowCritical: 30, lowCutoff: 36, weight: 0.55, guideline: 'reference' },
 ];
 
 // ── Red-flag rules (spec §4.2 + vitals_analyzer.dart + main.py _check_alerts) ─
@@ -83,7 +83,7 @@ const specialtyMaps = [
 const versionDoc = {
   version: KB_VERSION,
   active: true,
-  description: 'Initial Aegis KB — ported from on-device Dart analyzers.',
+  description: 'Initial Aegis KB - ported from on-device Dart analyzers.',
   sources: ['ADA Standards of Care', 'ICMR-INDIAB', 'AHA/ACC 2017', 'WHO Anemia Thresholds', 'NFHS-5', 'KDIGO'],
 };
 
@@ -110,7 +110,7 @@ async function validateAll(docs) {
   if (DRY) {
     try {
       const n = await validateAll(docs);
-      console.log(`DRY RUN — built and schema-validated ${n} documents for ${KB_VERSION}:`);
+      console.log(`DRY RUN - built and schema-validated ${n} documents for ${KB_VERSION}:`);
       console.log(`  • 1 version  • ${docs.thresholds.length} thresholds  • ${docs.redFlags.length} red-flags  • ${docs.specialtyMaps.length} specialty maps`);
       console.log('All documents valid. No database write performed.');
       process.exit(0);
@@ -143,7 +143,7 @@ async function validateAll(docs) {
 
   // Invalidate the in-process KB cache so any loader sharing this process sees
   // the new version immediately. A SEPARATELY running API server must reload
-  // via POST /api/aegis/kb/reload (admin) or a restart — the cache there is in
+  // via POST /api/aegis/kb/reload (admin) or a restart - the cache there is in
   // a different process and cannot be invalidated from here.
   try { require('./kb').invalidate(); } catch (_) {}
 

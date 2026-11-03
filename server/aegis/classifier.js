@@ -1,14 +1,14 @@
 /**
- * Aegis action-class classifier — the trust spine.
+ * Aegis action-class classifier - the trust spine.
  *
  * Pure, deterministic function of (riskLevel, triggeredFlags, confidence,
- * actionType). Same inputs ALWAYS produce the same class — the demo and the
+ * actionType). Same inputs ALWAYS produce the same class - the demo and the
  * audit depend on this. The LLM is never consulted here.
  *
- *   GREEN  — autonomous reversible/non-prescriptive action allowed
- *   AMBER  — informational half executes; doctor notified (non-blocking);
+ *   GREEN  - autonomous reversible/non-prescriptive action allowed
+ *   AMBER  - informational half executes; doctor notified (non-blocking);
  *            no autonomous clinical action
- *   RED    — HARD BLOCK; synchronous clinician review required; nothing
+ *   RED    - HARD BLOCK; synchronous clinician review required; nothing
  *            consequential dispatched
  *
  * Rules (ActionClass = max severity over all that trigger):

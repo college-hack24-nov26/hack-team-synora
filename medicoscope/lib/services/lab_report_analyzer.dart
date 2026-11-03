@@ -46,13 +46,13 @@ class _Knowledge {
           RegExp(r'glycated\s+hemoglobin', caseSensitive: false),
           RegExp(r'a1c', caseSensitive: false),
         ],
-        referenceRange: '< 5.7% normal • 5.7–6.4% prediabetes • ≥ 6.5% diabetes',
+        referenceRange: '< 5.7% normal • 5.7-6.4% prediabetes • ≥ 6.5% diabetes',
         highWarn: 5.7,
         highCritical: 9.0,
         interpret: (v) {
-          if (v >= 9.0) return 'Uncontrolled diabetes — urgent physician review';
+          if (v >= 9.0) return 'Uncontrolled diabetes - urgent physician review';
           if (v >= 6.5) return 'Diabetic range per ADA / ICMR thresholds';
-          if (v >= 5.7) return 'Prediabetic range — lifestyle modification recommended';
+          if (v >= 5.7) return 'Prediabetic range - lifestyle modification recommended';
           return 'Normal glycemic control';
         },
       ),
@@ -66,15 +66,15 @@ class _Knowledge {
           RegExp(r'\bfbg\b', caseSensitive: false),
           RegExp(r'fasting\s+plasma\s+glucose', caseSensitive: false),
         ],
-        referenceRange: '70–99 normal • 100–125 prediabetes • ≥ 126 diabetes mg/dL',
+        referenceRange: '70-99 normal • 100-125 prediabetes • ≥ 126 diabetes mg/dL',
         lowCutoff: 70,
         highWarn: 100,
         highCritical: 200,
         interpret: (v) {
-          if (v >= 200) return 'Severe hyperglycemia — seek medical care';
+          if (v >= 200) return 'Severe hyperglycemia - seek medical care';
           if (v >= 126) return 'Diabetic range (ADA)';
           if (v >= 100) return 'Impaired fasting glucose (prediabetes)';
-          if (v < 70) return 'Hypoglycemia — verify with repeat test';
+          if (v < 70) return 'Hypoglycemia - verify with repeat test';
           return 'Normal fasting glucose';
         },
       ),
@@ -88,7 +88,7 @@ class _Knowledge {
           RegExp(r'\bppg\b', caseSensitive: false),
           RegExp(r'2\s*hr?\s*pp', caseSensitive: false),
         ],
-        referenceRange: '< 140 normal • 140–199 prediabetes • ≥ 200 diabetes mg/dL',
+        referenceRange: '< 140 normal • 140-199 prediabetes • ≥ 200 diabetes mg/dL',
         highWarn: 140,
         highCritical: 200,
         interpret: (v) {
@@ -109,8 +109,8 @@ class _Knowledge {
         highWarn: 140,
         highCritical: 200,
         interpret: (v) {
-          if (v >= 200) return 'Suggestive of diabetes — confirm with FBS/HbA1c';
-          if (v >= 140) return 'Elevated — follow up with fasting test';
+          if (v >= 200) return 'Suggestive of diabetes - confirm with FBS/HbA1c';
+          if (v >= 140) return 'Elevated - follow up with fasting test';
           return 'Within expected range';
         },
       ),
@@ -124,16 +124,16 @@ class _Knowledge {
           RegExp(r'systolic', caseSensitive: false),
           RegExp(r'\bsbp\b', caseSensitive: false),
         ],
-        referenceRange: '< 120 normal • 120–129 elevated • 130–139 stage 1 • ≥ 140 stage 2',
+        referenceRange: '< 120 normal • 120-129 elevated • 130-139 stage 1 • ≥ 140 stage 2',
         lowCutoff: 90,
         highWarn: 130,
         highCritical: 180,
         interpret: (v) {
-          if (v >= 180) return 'Hypertensive crisis — seek immediate care';
+          if (v >= 180) return 'Hypertensive crisis - seek immediate care';
           if (v >= 140) return 'Stage 2 hypertension (AHA)';
           if (v >= 130) return 'Stage 1 hypertension';
-          if (v >= 120) return 'Elevated BP — lifestyle changes advised';
-          if (v < 90) return 'Hypotension — verify symptoms';
+          if (v >= 120) return 'Elevated BP - lifestyle changes advised';
+          if (v < 90) return 'Hypotension - verify symptoms';
           return 'Normal systolic pressure';
         },
       ),
@@ -145,7 +145,7 @@ class _Knowledge {
           RegExp(r'diastolic', caseSensitive: false),
           RegExp(r'\bdbp\b', caseSensitive: false),
         ],
-        referenceRange: '< 80 normal • 80–89 stage 1 • ≥ 90 stage 2',
+        referenceRange: '< 80 normal • 80-89 stage 1 • ≥ 90 stage 2',
         lowCutoff: 60,
         highWarn: 80,
         highCritical: 120,
@@ -153,7 +153,7 @@ class _Knowledge {
           if (v >= 120) return 'Hypertensive crisis';
           if (v >= 90) return 'Stage 2 hypertension';
           if (v >= 80) return 'Stage 1 hypertension';
-          if (v < 60) return 'Low diastolic — monitor';
+          if (v < 60) return 'Low diastolic - monitor';
           return 'Normal diastolic pressure';
         },
       ),
@@ -165,11 +165,11 @@ class _Knowledge {
           RegExp(r'total\s+cholesterol', caseSensitive: false),
           RegExp(r'cholesterol,?\s*total', caseSensitive: false),
         ],
-        referenceRange: '< 200 desirable • 200–239 borderline • ≥ 240 high',
+        referenceRange: '< 200 desirable • 200-239 borderline • ≥ 240 high',
         highWarn: 200,
         highCritical: 240,
         interpret: (v) {
-          if (v >= 240) return 'High — cardiovascular risk';
+          if (v >= 240) return 'High - cardiovascular risk';
           if (v >= 200) return 'Borderline high cholesterol';
           return 'Desirable level';
         },
@@ -182,11 +182,11 @@ class _Knowledge {
           RegExp(r'\bldl\b', caseSensitive: false),
           RegExp(r'low\s+density', caseSensitive: false),
         ],
-        referenceRange: '< 100 optimal • 100–129 near optimal • ≥ 160 high',
+        referenceRange: '< 100 optimal • 100-129 near optimal • ≥ 160 high',
         highWarn: 130,
         highCritical: 160,
         interpret: (v) {
-          if (v >= 160) return 'High LDL — atherosclerosis risk';
+          if (v >= 160) return 'High LDL - atherosclerosis risk';
           if (v >= 130) return 'Borderline high';
           return 'Optimal / near optimal';
         },
@@ -198,12 +198,12 @@ class _Knowledge {
         patterns: [
           RegExp(r'creatinine', caseSensitive: false),
         ],
-        referenceRange: '0.6–1.3 mg/dL (adults)',
+        referenceRange: '0.6-1.3 mg/dL (adults)',
         highWarn: 1.3,
         highCritical: 2.0,
         interpret: (v) {
-          if (v >= 2.0) return 'Severely elevated — possible renal damage';
-          if (v >= 1.3) return 'Elevated — consider renal function tests';
+          if (v >= 2.0) return 'Severely elevated - possible renal damage';
+          if (v >= 1.3) return 'Elevated - consider renal function tests';
           return 'Within reference range';
         },
       ),
@@ -212,13 +212,13 @@ class _Knowledge {
         display: 'Sodium',
         unit: 'mmol/L',
         patterns: [RegExp(r'sodium', caseSensitive: false)],
-        referenceRange: '135–145 mmol/L',
+        referenceRange: '135-145 mmol/L',
         lowCutoff: 135,
         highWarn: 145,
         highCritical: 160,
         interpret: (v) {
           if (v >= 160) return 'Severe hypernatremia';
-          if (v >= 145) return 'Hypernatremia — hydration / BP correlation';
+          if (v >= 145) return 'Hypernatremia - hydration / BP correlation';
           if (v < 135) return 'Hyponatremia';
           return 'Normal sodium';
         },
@@ -231,7 +231,7 @@ class _Knowledge {
         unit: 'g/dL',
         patterns: [
           // Anchor word-boundaries tightly so "HbA1c" is NOT matched for
-          // hemoglobin. The order matters — longer patterns first.
+          // hemoglobin. The order matters - longer patterns first.
           RegExp(r'h(a)?emoglobin\s*(?!a1c)', caseSensitive: false),
           RegExp(r'\bhgb\b', caseSensitive: false),
           // "Hb" followed by a number / space, not by A1c or any letter.
@@ -241,7 +241,7 @@ class _Knowledge {
         lowCritical: 8.0,
         lowCutoff: 12.0,
         interpret: (v) {
-          if (v < 7) return 'Severe anemia — clinical attention required';
+          if (v < 7) return 'Severe anemia - clinical attention required';
           if (v < 8) return 'Severe anemia (WHO < 8 g/dL)';
           if (v < 10) return 'Moderate anemia (WHO)';
           if (v < 12) return 'Mild anemia (WHO female / borderline male)';
@@ -253,12 +253,12 @@ class _Knowledge {
         display: 'MCV',
         unit: 'fL',
         patterns: [RegExp(r'\bmcv\b', caseSensitive: false)],
-        referenceRange: '80–100 fL',
+        referenceRange: '80-100 fL',
         lowCutoff: 80,
         highWarn: 100,
         interpret: (v) {
-          if (v < 80) return 'Microcytic — iron-deficiency / thalassemia pattern';
-          if (v > 100) return 'Macrocytic — B12 / folate / liver pattern';
+          if (v < 80) return 'Microcytic - iron-deficiency / thalassemia pattern';
+          if (v > 100) return 'Macrocytic - B12 / folate / liver pattern';
           return 'Normocytic';
         },
       ),
@@ -268,11 +268,11 @@ class _Knowledge {
         unit: 'pg',
         // Avoid matching MCHC which is a different index.
         patterns: [RegExp(r'\bmch\b(?!c)', caseSensitive: false)],
-        referenceRange: '27–33 pg',
+        referenceRange: '27-33 pg',
         lowCutoff: 27,
         highWarn: 33,
         interpret: (v) {
-          if (v < 27) return 'Hypochromic — iron-deficiency pattern';
+          if (v < 27) return 'Hypochromic - iron-deficiency pattern';
           if (v > 33) return 'Hyperchromic';
           return 'Normochromic';
         },
@@ -282,14 +282,14 @@ class _Knowledge {
         display: 'Ferritin',
         unit: 'ng/mL',
         patterns: [RegExp(r'ferritin', caseSensitive: false)],
-        referenceRange: 'Men 24–336 • Women 11–307 ng/mL',
+        referenceRange: 'Men 24-336 • Women 11-307 ng/mL',
         lowCritical: 10,
         lowCutoff: 15,
         highWarn: 300,
         interpret: (v) {
           if (v < 10) return 'Severely depleted iron stores';
           if (v < 15) return 'Iron-deficient stores';
-          if (v > 300) return 'Elevated — chronic inflammation / overload';
+          if (v > 300) return 'Elevated - chronic inflammation / overload';
           return 'Adequate iron stores';
         },
       ),
@@ -301,7 +301,7 @@ class _Knowledge {
           RegExp(r'\brbc\b', caseSensitive: false),
           RegExp(r'red\s+blood\s+cell', caseSensitive: false),
         ],
-        referenceRange: 'Men 4.7–6.1 • Women 4.2–5.4',
+        referenceRange: 'Men 4.7-6.1 • Women 4.2-5.4',
         lowCritical: 3.5,
         lowCutoff: 4.2,
         interpret: (v) {
@@ -319,12 +319,12 @@ class _Knowledge {
           RegExp(r'\bhct\b', caseSensitive: false),
           RegExp(r'\bpcv\b', caseSensitive: false),
         ],
-        referenceRange: 'Men 41–50 • Women 36–44 %',
+        referenceRange: 'Men 41-50 • Women 36-44 %',
         lowCritical: 30,
         lowCutoff: 36,
         interpret: (v) {
-          if (v < 25) return 'Very low hematocrit — severe anemia';
-          if (v < 36) return 'Low hematocrit — anaemia likely';
+          if (v < 25) return 'Very low hematocrit - severe anemia';
+          if (v < 36) return 'Low hematocrit - anaemia likely';
           return 'Normal hematocrit';
         },
       ),
@@ -335,7 +335,7 @@ class _Knowledge {
 /// End-to-end analyzer: given raw text from a PDF, produce a DiseaseRiskResult.
 class LabReportAnalyzer {
   /// Tries to parse a numeric value on the same line as (or within ~120 chars of)
-  /// any marker pattern. Returns the FIRST plausible value found — as soon as
+  /// any marker pattern. Returns the FIRST plausible value found - as soon as
   /// any pattern matches, we short-circuit, which prevents duplicate findings
   /// from the same marker with multiple synonyms.
   static double? _extractValue(String text, _MarkerSpec spec) {
@@ -449,11 +449,11 @@ class LabReportAnalyzer {
     final disease = DiseaseRegistry.of(d).title.toLowerCase();
     switch (r) {
       case RiskLevel.critical:
-        return 'Markers suggest CRITICAL $disease indicators — see a clinician promptly.';
+        return 'Markers suggest CRITICAL $disease indicators - see a clinician promptly.';
       case RiskLevel.high:
         return 'Report indicates HIGH risk for $disease.';
       case RiskLevel.moderate:
-        return 'Report indicates MODERATE risk for $disease — monitor and retest.';
+        return 'Report indicates MODERATE risk for $disease - monitor and retest.';
       case RiskLevel.low:
         return 'Markers in the normal range for $disease.';
     }
@@ -467,21 +467,21 @@ class LabReportAnalyzer {
         base.addAll([
           'Maintain a glycemic-controlled diet (low-GI carbs, adequate protein)',
           'Daily 30-minute moderate activity (walking / cycling)',
-          'Repeat HbA1c every 3–6 months',
+          'Repeat HbA1c every 3-6 months',
         ]);
         break;
       case DiseaseType.hypertension:
         base.addAll([
           'Limit sodium to < 2 g/day and increase potassium-rich foods',
           'Home BP log, morning & evening for 7 days',
-          'Stress management — meditation / breathing exercises',
+          'Stress management - meditation / breathing exercises',
         ]);
         break;
       case DiseaseType.anemia:
         base.addAll([
           'Iron-rich diet (leafy greens, jaggery, pulses, red meat if non-veg)',
           'Vitamin C with iron-rich meals improves absorption',
-          'Retest hemoglobin in 4–6 weeks',
+          'Retest hemoglobin in 4-6 weeks',
         ]);
         break;
     }

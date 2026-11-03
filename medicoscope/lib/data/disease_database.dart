@@ -44,7 +44,7 @@ class DiseaseDatabase {
       'model3d': 'assets/3d_models/vascular-lesions.glb',
     },
 
-    // Eye / Retinal Fundus (Diabetic Retinopathy — APTOS 2019 5-class grading)
+    // Eye / Retinal Fundus (Diabetic Retinopathy - APTOS 2019 5-class grading)
     'No DR': {
       'category': 'eye',
       'description':
@@ -53,7 +53,7 @@ class DiseaseDatabase {
     'Mild DR': {
       'category': 'eye',
       'description':
-          'Mild non-proliferative diabetic retinopathy. A few micro-aneurysms are present. Early stage — usually no vision loss yet, but retinopathy can progress. 6-monthly follow-up and tight HbA1c control advised.',
+          'Mild non-proliferative diabetic retinopathy. A few micro-aneurysms are present. Early stage - usually no vision loss yet, but retinopathy can progress. 6-monthly follow-up and tight HbA1c control advised.',
     },
     'Moderate DR': {
       'category': 'eye',
@@ -63,12 +63,12 @@ class DiseaseDatabase {
     'Severe DR': {
       'category': 'eye',
       'description':
-          'Severe non-proliferative diabetic retinopathy. Extensive haemorrhages, venous beading or intra-retinal microvascular abnormalities. High risk of progression to proliferative disease — urgent ophthalmology referral.',
+          'Severe non-proliferative diabetic retinopathy. Extensive haemorrhages, venous beading or intra-retinal microvascular abnormalities. High risk of progression to proliferative disease - urgent ophthalmology referral.',
     },
     'Proliferative DR': {
       'category': 'eye',
       'description':
-          'Proliferative diabetic retinopathy. Neovascularization of the retina / optic disc with risk of vitreous haemorrhage and retinal detachment. Sight-threatening — needs urgent laser pan-retinal photocoagulation or anti-VEGF therapy.',
+          'Proliferative diabetic retinopathy. Neovascularization of the retina / optic disc with risk of vitreous haemorrhage and retinal detachment. Sight-threatening - needs urgent laser pan-retinal photocoagulation or anti-VEGF therapy.',
     },
 
     // Heart Sound Conditions

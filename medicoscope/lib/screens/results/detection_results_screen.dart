@@ -465,13 +465,13 @@ class _BoundingBoxPainter extends CustomPainter {
     double displayWidth, displayHeight, offsetX, offsetY;
 
     if (imageAspect > containerAspect) {
-      // Image is wider — width fills container, height has letterbox bars
+      // Image is wider - width fills container, height has letterbox bars
       displayWidth = containerWidth;
       displayHeight = containerWidth / imageAspect;
       offsetX = 0;
       offsetY = (containerHeight - displayHeight) / 2;
     } else {
-      // Image is taller — height fills container, width has pillarbox bars
+      // Image is taller - height fills container, width has pillarbox bars
       displayHeight = containerHeight;
       displayWidth = containerHeight * imageAspect;
       offsetX = (containerWidth - displayWidth) / 2;

@@ -10,7 +10,7 @@ import 'package:medicoscope/core/locale/locale_provider.dart';
 import 'package:medicoscope/core/locale/app_strings.dart';
 import 'package:medicoscope/core/constants/disease_constants.dart';
 import 'package:medicoscope/core/providers/coins_provider.dart';
-import 'package:medicoscope/screens/chat/chat_bottom_sheet.dart';
+import 'package:medicoscope/screens/chat/chat_screen.dart';
 import 'package:medicoscope/screens/diseases/disease_deck_screen.dart';
 import 'package:medicoscope/screens/diseases/unified_risk_dashboard.dart';
 import 'package:medicoscope/screens/mental_health/mental_health_screen.dart';
@@ -18,6 +18,8 @@ import 'package:medicoscope/screens/rewards/rewards_screen.dart';
 import 'package:medicoscope/screens/upload/image_upload_screen.dart';
 import 'package:medicoscope/screens/vitals/vitals_screen.dart';
 import 'package:medicoscope/screens/heart/heart_monitoring_screen.dart';
+import 'package:medicoscope/screens/respiratory/respiratory_screen.dart';
+import 'package:medicoscope/screens/aegis/live_consult_screen.dart';
 import 'package:medicoscope/screens/alerts/patient_alerts_screen.dart';
 import 'package:medicoscope/screens/appointments/patient_appointments_screen.dart';
 import 'package:medicoscope/screens/nearby_doctors/nearby_doctors_screen.dart';
@@ -79,7 +81,7 @@ class PatientDashboardScreen extends StatelessWidget {
         ),
         child: FloatingActionButton(
           heroTag: null,
-          onPressed: () => showChatBottomSheet(context),
+          onPressed: () => openChatScreen(context),
           backgroundColor: Colors.transparent,
           elevation: 0,
           child: const Icon(Icons.chat_rounded, color: Colors.white),
@@ -262,6 +264,25 @@ class PatientDashboardScreen extends StatelessWidget {
 
                     const SizedBox(height: AppTheme.spacingMedium),
 
+                    // AI Consult tile - the autonomous Aegis agent (hero feature).
+                    DashboardTile(
+                      icon: Icons.auto_awesome,
+                      title: 'AI Consult · Aegis',
+                      description: 'Autonomous agent: reasons, screens & escalates safely',
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFFE36B8E), Color(0xFFC9527A)],
+                      ),
+                      onTap: () => _navigateTo(
+                        context,
+                        const LiveConsultScreen(),
+                      ),
+                      animationDelay: 450,
+                    ),
+
+                    const SizedBox(height: AppTheme.spacingMedium),
+
                     // Skin Scan tile
                     DashboardTile(
                       icon: Icons.face_outlined,
@@ -420,6 +441,26 @@ class PatientDashboardScreen extends StatelessWidget {
 
                     const SizedBox(height: AppTheme.spacingMedium),
 
+                    // Respiratory screening tile - on-device breath/cough
+                    // acoustic analysis (screening-grade).
+                    DashboardTile(
+                      icon: Icons.air_outlined,
+                      title: 'Respiratory Check',
+                      description: 'Breathing-pattern screening from a short recording',
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFF11998E), Color(0xFF38EF7D)],
+                      ),
+                      onTap: () => _navigateTo(
+                        context,
+                        const RespiratoryScreen(),
+                      ),
+                      animationDelay: 790,
+                    ),
+
+                    const SizedBox(height: AppTheme.spacingMedium),
+
                     // Alerts tile
                     DashboardTile(
                       icon: Icons.notifications_active_outlined,
@@ -439,7 +480,7 @@ class PatientDashboardScreen extends StatelessWidget {
 
                     const SizedBox(height: AppTheme.spacingMedium),
 
-                    // My Appointments tile — tracks doctor confirmations
+                    // My Appointments tile - tracks doctor confirmations
                     // and reschedule proposals.
                     DashboardTile(
                       icon: Icons.event_available_outlined,

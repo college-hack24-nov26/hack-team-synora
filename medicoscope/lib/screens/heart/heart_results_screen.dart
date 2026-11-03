@@ -519,7 +519,7 @@ class _HeartRateChart extends StatelessWidget {
     final maxBpm = data.map((p) => p.bpm).reduce(max).toDouble();
     final minBpm = data.map((p) => p.bpm).reduce(min).toDouble();
     // If min == max (truly flat HR), open up the y-axis so the line is
-    // visible centred — otherwise fl_chart renders a zero-height band.
+    // visible centred - otherwise fl_chart renders a zero-height band.
     final bpmRange = maxBpm - minBpm;
     final yMin = (bpmRange < 1
             ? minBpm - 15

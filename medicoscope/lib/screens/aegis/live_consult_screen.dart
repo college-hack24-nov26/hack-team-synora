@@ -9,7 +9,7 @@ import 'package:medicoscope/core/widgets/glass_card.dart';
 import 'package:medicoscope/services/consult_service.dart';
 import 'package:medicoscope/services/location_service.dart';
 
-/// Live Agent Consult — the autonomous loop, on screen. Streams the Aegis
+/// Live Agent Consult - the autonomous loop, on screen. Streams the Aegis
 /// decision-trace (triage -> plan -> tool calls -> fusion -> gate verdict) and
 /// renders each step as it happens, so the "agentic" system is visible, not
 /// just claimed. Calls POST /aegis/consult (SSE).
@@ -544,10 +544,10 @@ class _LiveConsultScreenState extends State<LiveConsultScreen> {
   Widget _verdictBar(bool isDark) {
     final c = _riskColor(_verdict);
     final msg = _verdict.toUpperCase() == 'RED'
-        ? 'Action BLOCKED — escalated to a clinician for review.'
+        ? 'Action BLOCKED - escalated to a clinician for review.'
         : _verdict.toUpperCase() == 'AMBER'
-            ? 'Executed with oversight — doctor notified.'
-            : 'Cleared — safe to proceed autonomously.';
+            ? 'Executed with oversight - doctor notified.'
+            : 'Cleared - safe to proceed autonomously.';
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.all(AppTheme.spacingLarge),

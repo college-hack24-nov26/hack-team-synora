@@ -83,7 +83,7 @@ class _BookAppointmentSheetState extends State<_BookAppointmentSheet> {
       setState(() {
         _busy = false;
         _error =
-            'No doctor linked yet. Use the "Link Doctor" screen first — the appointment needs a recipient.';
+            'No doctor linked yet. Use the "Link Doctor" screen first - the appointment needs a recipient.';
       });
       return;
     }
@@ -98,6 +98,7 @@ class _BookAppointmentSheetState extends State<_BookAppointmentSheet> {
             ? 'general'
             : DiseaseRegistry.of(widget.disease!).title.toLowerCase(),
         reason: _reasonCtrl.text.trim(),
+        authToken: auth.token,
       );
       if (!mounted) return;
       setState(() {

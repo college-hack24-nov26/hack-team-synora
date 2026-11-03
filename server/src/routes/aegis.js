@@ -39,7 +39,7 @@ router.post('/guardrail/check', auth, (req, res) => {
 router.get('/cases', auth, async (req, res) => {
   try {
     // The clinician console is doctor/admin only. A patient (or any other
-    // role) must never list RED cases — that would leak other patients' data.
+    // role) must never list RED cases - that would leak other patients' data.
     if (req.user.role !== 'doctor' && req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Clinician role required' });
     }
@@ -122,7 +122,7 @@ router.post('/cases/:id/:verb', auth, async (req, res) => {
       });
     }
 
-    // On APPROVE/MODIFY, the previously-blocked action may now execute — but it
+    // On APPROVE/MODIFY, the previously-blocked action may now execute - but it
     // must go BACK THROUGH THE GATE, never call the executor directly. Routing
     // via aegisService.submit({ clinicianApproved: true }) means the (possibly
     // modified) payload is still re-classified, red-flag-detected, written to

@@ -20,7 +20,7 @@ import 'package:medicoscope/services/disease_result_pipeline.dart';
 import 'package:medicoscope/services/image_retina_analyzer.dart';
 import 'package:medicoscope/services/tflite_service.dart';
 
-/// Retinal fundus screen — uses the APTOS 2019 / EyePACS-trained TFLite model
+/// Retinal fundus screen - uses the APTOS 2019 / EyePACS-trained TFLite model
 /// shipped at assets/models/eye_float32.tflite. Falls back to the hand-crafted
 /// feature pipeline if the model fails to load on the device.
 class RetinalFundusScreen extends StatefulWidget {
@@ -49,7 +49,7 @@ class _RetinalFundusScreenState extends State<RetinalFundusScreen> {
     try {
       await _tflite.loadModel('eye');
     } catch (_) {
-      // Fall back silently — we'll still offer heuristic-only analysis.
+      // Fall back silently - we'll still offer heuristic-only analysis.
     }
   }
 
@@ -80,12 +80,12 @@ class _RetinalFundusScreenState extends State<RetinalFundusScreen> {
       if (detection != null) {
         result = _convertToRisk(detection);
       } else {
-        setState(() => _status = 'Model returned low confidence — running feature heuristic…');
+        setState(() => _status = 'Model returned low confidence - running feature heuristic…');
         final bytes = await _imageFile!.readAsBytes();
         result = ImageRetinaAnalyzer.analyze(Uint8List.fromList(bytes));
       }
     } catch (e) {
-      // Model load / inference failed — fall back to the hand-crafted analyser.
+      // Model load / inference failed - fall back to the hand-crafted analyser.
       setState(() => _status = 'Falling back to feature heuristic…');
       final bytes = await _imageFile!.readAsBytes();
       result = ImageRetinaAnalyzer.analyze(Uint8List.fromList(bytes));
@@ -106,7 +106,7 @@ class _RetinalFundusScreenState extends State<RetinalFundusScreen> {
       headline: result.headline,
       findings: result.findings
           .map((f) =>
-              '${f.name} ${f.value} ${f.unit} (${f.flag}) — ${f.interpretation}')
+              '${f.name} ${f.value} ${f.unit} (${f.flag}) - ${f.interpretation}')
           .toList(),
       language: lang,
     );
@@ -163,13 +163,13 @@ class _RetinalFundusScreenState extends State<RetinalFundusScreen> {
         risk = RiskLevel.high;
         score = 0.85;
         headline =
-            'Severe non-proliferative diabetic retinopathy — urgent referral.';
+            'Severe non-proliferative diabetic retinopathy - urgent referral.';
         break;
       case 'Proliferative DR':
         risk = RiskLevel.critical;
         score = 0.95;
         headline =
-            'Proliferative diabetic retinopathy — sight-threatening, seek care immediately.';
+            'Proliferative diabetic retinopathy - sight-threatening, seek care immediately.';
         break;
       default:
         risk = RiskLevel.low;
@@ -212,8 +212,8 @@ class _RetinalFundusScreenState extends State<RetinalFundusScreen> {
           interpretation: conf >= 0.7
               ? 'High model confidence'
               : conf >= 0.4
-                  ? 'Moderate model confidence — re-take if possible'
-                  : 'Low confidence — a sharper, better-lit image will help',
+                  ? 'Moderate model confidence - re-take if possible'
+                  : 'Low confidence - a sharper, better-lit image will help',
         ),
       ],
       topContributors: [
@@ -223,12 +223,12 @@ class _RetinalFundusScreenState extends State<RetinalFundusScreen> {
       recommendations: [
         if (risk == RiskLevel.critical || risk == RiskLevel.high)
           'URGENT: Book an ophthalmologist appointment within days.',
-        'Tight glycaemic control — target HbA1c < 7%.',
+        'Tight glycaemic control - target HbA1c < 7%.',
         'Annual dilated retinal exam with a specialist.',
         'Control blood pressure and lipids to slow progression.',
       ],
       dataSource:
-          'APTOS 2019 (Aravind Eye Hospital) + Kaggle EyePACS — on-device TFLite',
+          'APTOS 2019 (Aravind Eye Hospital) + Kaggle EyePACS - on-device TFLite',
       timestamp: DateTime.now(),
     );
   }
@@ -276,7 +276,7 @@ class _RetinalFundusScreenState extends State<RetinalFundusScreen> {
                 'Upload or capture a retinal fundus image. An on-device TFLite '
                 'classifier trained on APTOS 2019 (Aravind Eye Hospital) + '
                 'Kaggle EyePACS stages diabetic retinopathy on the standard '
-                '0–4 APTOS scale. Fully on-device — no image leaves your phone.',
+                '0-4 APTOS scale. Fully on-device - no image leaves your phone.',
                 style: TextStyle(
                   fontSize: 12,
                   height: 1.5,

@@ -19,7 +19,7 @@ function toClient(a) {
   };
 }
 
-// POST /api/appointments — create an appointment request (patient files own).
+// POST /api/appointments - create an appointment request (patient files own).
 router.post('/', auth, async (req, res) => {
   try {
     const b = req.body || {};
@@ -44,7 +44,7 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-// GET /api/appointments/mine — appointments scoped to the caller by role.
+// GET /api/appointments/mine - appointments scoped to the caller by role.
 router.get('/mine', auth, async (req, res) => {
   try {
     let q;
@@ -58,7 +58,7 @@ router.get('/mine', auth, async (req, res) => {
   }
 });
 
-// PATCH /api/appointments/:id — confirm / decline / reschedule (doctor-owned).
+// PATCH /api/appointments/:id - confirm / decline / reschedule (doctor-owned).
 router.patch('/:id', auth, async (req, res) => {
   try {
     const appt = await Appointment.findById(req.params.id);
