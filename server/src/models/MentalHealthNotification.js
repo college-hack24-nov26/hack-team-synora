@@ -7,6 +7,11 @@ const mentalHealthNotificationSchema = new mongoose.Schema({
   clinicalReport: { type: String, required: true },
   urgency: { type: String, enum: ['low', 'moderate', 'high'], default: 'low' },
   transcript: { type: String },
+  // Live patient location captured when the alert was raised (any modality).
+  latitude: { type: Number, default: null },
+  longitude: { type: Number, default: null },
+  locationLabel: { type: String, default: '' },
+  mapsUrl: { type: String, default: '' },
   read: { type: Boolean, default: false },
   // What raised this notification: 'mindspace' | 'disease_alert' | 'appointment_request'.
   // Lets the doctor UI categorise and the disease-alert client de-dupe by source.

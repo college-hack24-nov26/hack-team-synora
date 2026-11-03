@@ -73,6 +73,11 @@ class ConsultRequest(BaseModel):
     language: str = "en"
     # optional pre-captured device results keyed by tool id
     captures: dict = {}
+    # optional live patient location, forwarded to any gate-raised doctor alert
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    location_label: Optional[str] = None
+    maps_url: Optional[str] = None
 
 
 def _sse(event: str, data: dict) -> str:
@@ -164,6 +169,49 @@ async def _aegis_submit(client: httpx.AsyncClient, token: str, proposal: dict) -
     return r.json()
 
 
+_VALID_RISK = ("low", "moderate", "high", "critical")
+
+
+async def _fetch_saved_results(client: httpx.AsyncClient, token: str, patient_id: str) -> list[dict]:
+    """Pull the patient's REAL saved screening results from Node and turn them
+    into evidence observations. This is genuine patient data (their own prior
+    lab / photo / vitals screenings), so it carries fidelity 'real'. Newest
+    result per (disease, method) wins. Returns [] when the patient has none."""
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    try:
+        r = await client.get(
+            f"{NODE_API}/detections/risk-results/{patient_id}",
+            headers=headers, params={"limit": 50}, timeout=20,
+        )
+        r.raise_for_status()
+        rows = r.json().get("results", [])
+    except Exception:
+        return []
+
+    obs, seen = [], set()
+    for row in rows:  # already sorted newest-first by the Node route
+        disease = (row.get("disease") or "").lower()
+        method = row.get("method") or "saved_screening"
+        key = (disease, method)
+        if not disease or key in seen:
+            continue
+        seen.add(key)
+        risk = (row.get("risk") or "low").lower()
+        score = row.get("score")
+        obs.append({
+            "disease": disease,
+            "risk": risk if risk in _VALID_RISK else "low",
+            "confidence": score if isinstance(score, (int, float)) else 0.5,
+            "modality": method,
+            "fidelity": "real",
+            "status": "ok",
+            "finding": row.get("headline") or "",
+            "source": "saved_screening",
+            "measuredAt": row.get("measuredAt"),
+        })
+    return obs
+
+
 def _fuse(observations: list[dict]) -> dict:
     """Confidence-weighted fusion per disease + a CROSS-MODALITY CONCORDANCE
     score — the thing a single-modality app structurally cannot produce.
@@ -184,8 +232,12 @@ def _fuse(observations: list[dict]) -> dict:
     risk_rank = {"low": 0, "moderate": 1, "high": 2, "critical": 3}
     inv = {v: k for k, v in risk_rank.items()}
 
+    # Only REAL evidence counts. A tool that had no data (unavailable /
+    # skipped_no_data) or errored is NOT a modality and must never inflate the
+    # assessment — this is the honesty fix.
+    _dead = {"unavailable", "error", "skipped_no_data"}
     for disease, obs in by_disease.items():
-        usable = [o for o in obs if o.get("status") != "unavailable"]
+        usable = [o for o in obs if o.get("status") not in _dead]
         risks = [risk_rank.get(o.get("risk", "low"), 0) for o in usable]
         if not risks:
             continue
@@ -225,11 +277,25 @@ def _fuse(observations: list[dict]) -> dict:
             "corroborated": n_modalities >= 2 and concordance >= 0.5,
         }
 
+    # Characterise what the assessment is actually BASED on, so the UI can label
+    # it honestly instead of implying a full screening happened.
+    all_usable = [o for o in observations if o.get("status") not in _dead]
+    has_measured = any((o.get("modality") or "") not in ("", "symptom") for o in all_usable)
+    has_symptom = any((o.get("modality") or "") == "symptom" for o in all_usable)
+
+    if not all_usable:
+        # Nothing real to go on. Do NOT claim "low risk" — say so plainly.
+        return {"assessments": {}, "conflicts": [], "overall_risk": "not_assessed",
+                "data_basis": "insufficient", "has_real_evidence": False}
+
     overall = "low"
     for a in assessments.values():
         if risk_rank[a["risk"]] > risk_rank[overall]:
             overall = a["risk"]
-    return {"assessments": assessments, "conflicts": conflicts, "overall_risk": overall}
+
+    data_basis = "measured" if has_measured else ("symptom_only" if has_symptom else "insufficient")
+    return {"assessments": assessments, "conflicts": conflicts, "overall_risk": overall,
+            "data_basis": data_basis, "has_real_evidence": has_measured}
 
 
 async def run_consult(req: ConsultRequest) -> AsyncGenerator[str, None]:
@@ -252,10 +318,36 @@ async def run_consult(req: ConsultRequest) -> AsyncGenerator[str, None]:
     observations = []
     async with httpx.AsyncClient() as client:
         token = req.auth_token
+
+        # A1: the patient's REAL saved screenings are the primary evidence.
+        saved = await _fetch_saved_results(client, token, req.patient_id)
+        if saved:
+            observations.extend(saved)
+            yield _sse("saved_evidence", {
+                "count": len(saved),
+                "modalities": sorted({s["modality"] for s in saved}),
+                "diseases": sorted({s["disease"] for s in saved}),
+            })
+
         for i, step in enumerate(plan):
             tool_id = step["tool"]
             yield _sse("tool_call", {"index": i, "tool": tool_id, "disease": step["disease"]})
-            payload = req.captures.get(tool_id, {"disease": step["disease"]})
+
+            # A2: NEVER fabricate. symptom.score reads the real free-text
+            # complaint; any device modality runs ONLY if the patient actually
+            # captured data for it this session. Otherwise it is skipped (and
+            # NOT counted as evidence), so the consult can't invent a reading.
+            if tool_id == "symptom.score":
+                payload = {"disease": step["disease"], "freeText": req.complaint}
+            elif tool_id in req.captures:
+                payload = req.captures[tool_id]
+            else:
+                yield _sse("tool_result", {
+                    "index": i, "tool": tool_id, "disease": step["disease"],
+                    "status": "skipped_no_data",
+                })
+                continue
+
             try:
                 result = await _invoke_tool(client, token, tool_id, payload)
             except Exception as e:
@@ -272,21 +364,35 @@ async def run_consult(req: ConsultRequest) -> AsyncGenerator[str, None]:
         fused = _fuse(observations)
         yield _sse("diagnostic_result", fused)
 
-        if fused["conflicts"]:
+        if fused.get("conflicts"):
             yield _sse("plan_replan", {"reason": "cross-modal contradiction",
                                        "diseases": fused["conflicts"],
                                        "action": "request confirmatory evidence"})
 
-        # Run a representative action through the Aegis gate.
+        # Run a representative action through the Aegis gate. The gate only knows
+        # the four real risk levels, so map "not_assessed" to a safe "low" for
+        # the call, but keep the honest basis in the summary and the trace.
+        basis = fused.get("data_basis", "insufficient")
+        gate_risk = fused["overall_risk"] if fused["overall_risk"] in _VALID_RISK else "low"
+        if basis == "insufficient":
+            summary = "No screening data on file; recommend the patient complete a screening."
+        elif basis == "symptom_only":
+            summary = f"Symptom-based triage only (no measured evidence); provisional {fused['overall_risk']}."
+        else:
+            summary = f"Screening across {len(fused.get('assessments', {}))} conditions; overall {fused['overall_risk']}."
         proposal = {
             "patientId": req.patient_id,
             "patientName": req.patient_name,
             "doctorId": req.doctor_id,
-            "riskLevel": fused["overall_risk"],
+            "riskLevel": gate_risk,
             "actionType": "book_appointment",
             "text": req.complaint,
             "inputs": req.captures.get("vitals.assess", {}),
-            "summary": f"Screening across {len(observations)} modalities; overall {fused['overall_risk']}.",
+            "summary": summary,
+            "latitude": req.latitude,
+            "longitude": req.longitude,
+            "locationLabel": req.location_label,
+            "mapsUrl": req.maps_url,
         }
         try:
             verdict = await _aegis_submit(client, token, proposal)
@@ -301,6 +407,7 @@ async def run_consult(req: ConsultRequest) -> AsyncGenerator[str, None]:
 
         yield _sse("consult_complete", {
             "overall_risk": fused["overall_risk"],
+            "data_basis": basis,
             "action_class": verdict.get("actionClass"),
             "executed": verdict.get("executed"),
         })

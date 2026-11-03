@@ -59,10 +59,14 @@ def _service_headers() -> dict:
 
 
 async def _backend_post(path: str, payload: dict, headers: dict | None = None) -> None:
-    """Best-effort POST to the Node backend; never raises into the request path."""
+    """Best-effort POST to the Node backend; never raises into the request path.
+    Logs a non-2xx response (e.g. a SERVICE_KEY 401) instead of swallowing it,
+    so a mis-set key can't silently drop persisted alerts."""
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            await client.post(f"{BACKEND_URL}{path}", json=payload, headers=headers or {})
+            resp = await client.post(f"{BACKEND_URL}{path}", json=payload, headers=headers or {})
+            if resp.status_code >= 400:
+                print(f"Warning: backend POST {path} -> HTTP {resp.status_code}: {resp.text[:200]}")
     except Exception as e:
         print(f"Warning: backend POST {path} failed: {e}")
 
@@ -284,6 +288,10 @@ async def analyze_mental_health(
     doctor_id: Optional[str] = Form(None),
     language: str = Form("en"),
     auth_token: Optional[str] = Form(None),
+    latitude: Optional[float] = Form(None),
+    longitude: Optional[float] = Form(None),
+    location_label: Optional[str] = Form(None),
+    maps_url: Optional[str] = Form(None),
 ):
     try:
         # Save audio temporarily
@@ -369,6 +377,10 @@ Format as a professional clinical note. Respond in English."""
                             "clinicalReport": doctor_report,
                             "urgency": urgency,
                             "transcript": transcript,
+                            "latitude": latitude,
+                            "longitude": longitude,
+                            "locationLabel": location_label,
+                            "mapsUrl": maps_url,
                         },
                     )
             except Exception as notif_err:
@@ -455,6 +467,24 @@ ALERT_THRESHOLDS = {
 }
 
 
+def _apply_excursion(pt: dict) -> str:
+    """Push one vital just past an alert threshold. These are SIMULATED
+    excursions (the whole stream is simulated and labelled as such); without
+    them most scenarios never breach, so a monitoring session would show no
+    alerts at all. Returns the kind of excursion applied."""
+    kind = random.choice(["hr_high", "hr_high", "sys_high", "sys_high", "spo2_low", "hr_low"])
+    if kind == "hr_high":
+        pt["heart_rate"] = round(random.uniform(132, 165), 1)
+    elif kind == "sys_high":
+        pt["systolic"] = round(random.uniform(152, 178), 1)
+        pt["diastolic"] = round(random.uniform(95, 112), 1)
+    elif kind == "spo2_low":
+        pt["spo2"] = round(random.uniform(85, 91), 1)
+    elif kind == "hr_low":
+        pt["heart_rate"] = round(random.uniform(43, 49), 1)
+    return kind
+
+
 def _generate_vitals(session: dict) -> list[dict]:
     """Generate 1-3 simulated data points for a tick."""
     scenario = session["scenario"]
@@ -483,14 +513,22 @@ def _generate_vitals(session: dict) -> list[dict]:
         dia = max(40, min(130, dia))
         spo2 = max(70, min(100, spo2))
 
-        points.append({
+        pt = {
             "tick": tick,
             "timestamp": datetime.utcnow().isoformat() + "Z",
             "heart_rate": round(hr, 1),
             "systolic": round(sys_, 1),
             "diastolic": round(dia, 1),
             "spo2": round(spo2, 1),
-        })
+        }
+
+        # Simulated excursions so a session actually surfaces alerts: force one
+        # early (so the doctor/patient sees an alert quickly), then ~13% of
+        # points thereafter. Most readings still stay in the normal range.
+        if tick == 3 or random.random() < 0.13:
+            _apply_excursion(pt)
+
+        points.append(pt)
 
     session["tick_counter"] = tick
     return points

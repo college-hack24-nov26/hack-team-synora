@@ -25,6 +25,10 @@ class ConsultService {
     required String complaint,
     required String authToken,
     Map<String, dynamic> captures = const {},
+    double? latitude,
+    double? longitude,
+    String? locationLabel,
+    String? mapsUrl,
   }) async* {
     final uri = Uri.parse('${ApiConstants.chatbotBaseUrl}/aegis/consult');
     final body = jsonEncode({
@@ -34,6 +38,10 @@ class ConsultService {
       'complaint': complaint,
       'auth_token': authToken,
       'captures': captures,
+      'latitude': latitude,
+      'longitude': longitude,
+      'location_label': locationLabel,
+      'maps_url': mapsUrl,
     });
 
     final client = http.Client();

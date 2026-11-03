@@ -14,6 +14,23 @@ const labAnalyzer = require('../analyzers/lab');
 
 let _registered = false;
 
+// Hallmark symptom keywords per disease. Used only as a deterministic,
+// screening-only fallback when a consult has a free-text complaint but no
+// structured questionnaire answers. Confidence stays capped by the fidelity gate.
+const SYMPTOM_KEYWORDS = {
+  anemia: ['tired', 'fatigue', 'weak', 'dizzy', 'pale', 'breathless', 'short of breath', 'palpitation'],
+  diabetes: ['thirsty', 'thirst', 'frequent urination', 'urinat', 'blurred vision', 'blurry', 'weight loss', 'sugar', 'numb', 'tingling'],
+  hypertension: ['headache', 'blood pressure', 'chest', 'palpitation', 'nosebleed', 'blurred vision', 'dizzy'],
+};
+function _freeTextSymptomScore(disease, text) {
+  const kws = SYMPTOM_KEYWORDS[disease] || [];
+  if (!kws.length) return 0;
+  const t = (text || '').toLowerCase();
+  const hits = kws.filter((k) => t.includes(k)).length;
+  // 3+ hallmark symptoms => a strong (but still screening-only) signal, capped.
+  return Math.min(0.8, hits * 0.25);
+}
+
 function registerAll(kb = { thresholds: [] }) {
   if (_registered) return registry.list();
   const thresholds = kb.thresholds || [];
@@ -26,6 +43,7 @@ function registerAll(kb = { thresholds: [] }) {
       provenance: { model: 'CardioScope MLP (TFLite) + MFCC', source: 'cardio-l3eb.onrender.com/predict' },
       honesty: 'Real TFLite classifier + real MFCC DSP; HR ribbon is cosmetic.',
       inputSchema: { wavUrl: 'string|optional', features: 'number[]|optional' },
+      requires: ['prediction'],
     },
     async (input) => {
       // Demo-safe: the actual network call is done client-side (device captures
@@ -52,6 +70,7 @@ function registerAll(kb = { thresholds: [] }) {
       fidelity: 'heuristic', execution: 'server',
       honesty: 'Regex extraction + real ADA/WHO/AHA cutoffs; caller supplies text (no OCR).',
       inputSchema: { disease: 'string', text: 'string' },
+      requires: ['text'],
     },
     async (input) => labAnalyzer.analyze({ disease: input.disease, text: input.text, thresholds })
   );
@@ -63,14 +82,24 @@ function registerAll(kb = { thresholds: [] }) {
       fidelity: 'heuristic', execution: 'server',
       honesty: 'Weighted questionnaire + red-flag keyword match; deterministic.',
       inputSchema: { disease: 'string', answers: 'object', freeText: 'string|optional' },
+      requiresAny: ['answers', 'freeText'],
     },
     async (input) => {
       const answers = input.answers || {};
       const vals = Object.values(answers).map(Number).filter(n => !Number.isNaN(n));
-      const score = vals.length ? Math.min(1, vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
+      // Structured questionnaire answers score directly; otherwise fall back to
+      // a keyword match over the free-text complaint (real patient input) so a
+      // symptom-only consult still produces an honest, heuristic signal.
+      let score;
+      if (vals.length) {
+        score = Math.min(1, vals.reduce((a, b) => a + b, 0) / vals.length);
+      } else {
+        score = _freeTextSymptomScore(input.disease, input.freeText || '');
+      }
       const risk = score >= 0.75 ? 'critical' : score >= 0.5 ? 'high' : score >= 0.25 ? 'moderate' : 'low';
       return { disease: input.disease, risk, score, value: score, confidence: 0.5, contributesTo: [input.disease],
-        finding: `symptom score ${score.toFixed(2)}`, raw: { answers, freeText: input.freeText || '' } };
+        finding: `symptom score ${score.toFixed(2)}`, modality: 'symptom',
+        raw: { answers, freeText: input.freeText || '' } };
     }
   );
 
@@ -81,6 +110,7 @@ function registerAll(kb = { thresholds: [] }) {
       fidelity: 'heuristic', execution: 'server',
       honesty: 'Threshold engine over real AHA/ADA/WHO cutoffs; is_simulated always surfaced.',
       inputSchema: { systolic: 'number', diastolic: 'number', heart_rate: 'number', spo2: 'number', isSimulated: 'boolean' },
+      requiresAny: ['systolic', 'diastolic', 'spo2', 'heart_rate'],
     },
     async (input) => {
       const { systolic = 0, diastolic = 0, spo2 = 99 } = input;
@@ -101,6 +131,7 @@ function registerAll(kb = { thresholds: [] }) {
       fidelity: 'partial', execution: 'device->server',
       honesty: 'Real HR/HRV/peak DSP; BP number is a heuristic fit — screening only.',
       inputSchema: { hr: 'number', systolic: 'number', diastolic: 'number' },
+      requiresAny: ['systolic', 'diastolic', 'hr'],
     },
     async (input) => ({ disease: 'hypertension', risk: input.systolic >= 140 ? 'high' : 'moderate',
       score: 0.45, value: `${input.systolic}/${input.diastolic}`, confidence: 0.6, contributesTo: ['hypertension'],
@@ -114,6 +145,7 @@ function registerAll(kb = { thresholds: [] }) {
       fidelity: 'fabricated_scale', execution: 'device->server',
       honesty: 'Real RGB/HSV color math; Hb from a hand-tuned formula, not trained.',
       inputSchema: { hbEstimate: 'number' },
+      requires: ['hbEstimate'],
     },
     async (input) => {
       const hb = input.hbEstimate ?? 12;
@@ -130,6 +162,7 @@ function registerAll(kb = { thresholds: [] }) {
       fidelity: 'heuristic', execution: 'device->server',
       honesty: 'Pixel dark-spot/exudate features, hardcoded thresholds; no ML.',
       inputSchema: { drScore: 'number' },
+      requires: ['drScore'],
     },
     async (input) => {
       const s = input.drScore ?? 0;
@@ -147,6 +180,7 @@ function registerAll(kb = { thresholds: [] }) {
       provenance: { source: 'OpenStreetMap Nominatim' },
       honesty: 'Live OSM Nominatim search (1 req/s + custom UA).',
       inputSchema: { lat: 'number', lng: 'number', specialty: 'string|optional' },
+      requiresAny: ['lat', 'lng'],
     },
     async (input) => ({ disease: null, finding: 'facility search', value: input.specialty || 'general',
       confidence: 1.0, provenance: { source: 'Nominatim' }, raw: { ...input } })
@@ -173,6 +207,7 @@ function registerAll(kb = { thresholds: [] }) {
       provenance: { method: 'on-device acoustic DSP (speech rate / pausing / pitch & energy dynamics)' },
       honesty: 'Real voice-signal features (Cummins 2015 / Mundt 2007 markers). Screening signal, NOT a depression diagnosis; carries an honest confidence.',
       inputSchema: { result: 'object|optional' },
+      requires: ['result'],
     },
     async (input) => {
       const r = input.result || {};
@@ -197,6 +232,7 @@ function registerAll(kb = { thresholds: [] }) {
       provenance: { method: 'on-device respiratory acoustics (breathing rate, cough energy, spectral features)' },
       honesty: 'Real audio features (reuses heart-sound MFCC pipeline). Screening signal for respiratory distress, NOT a diagnosis of asthma/COPD/pneumonia.',
       inputSchema: { result: 'object|optional' },
+      requires: ['result'],
     },
     async (input) => {
       const r = input.result || {};

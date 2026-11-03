@@ -13,79 +13,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:medicoscope/core/locale/locale_provider.dart';
 import 'package:medicoscope/core/locale/app_strings.dart';
 
-
-enum NotificationModality {
-  all,
-  skinCancer,
-  cardiac,
-  anemia,
-  respiratory,
-  retinopathy,
-  vitals,
-  mindSpace,
-  appointments,
-}
-
-class ModalityMeta {
-  final String label;
-  final IconData icon;
-  final Color color;
-
-  const ModalityMeta({
-    required this.label,
-    required this.icon,
-    required this.color,
-  });
-}
-
-const Map<NotificationModality, ModalityMeta> _modalityMetadata = {
-  NotificationModality.all: ModalityMeta(
-    label: 'All Modalities',
-    icon: Icons.all_inbox_rounded,
-    color: Color(0xFF6366F1),
-  ),
-  NotificationModality.skinCancer: ModalityMeta(
-    label: 'Skin Care / Derm',
-    icon: Icons.coronavirus_outlined,
-    color: Color(0xFFE65100),
-  ),
-  NotificationModality.cardiac: ModalityMeta(
-    label: 'Cardiac / Heart',
-    icon: Icons.favorite_rounded,
-    color: Color(0xFFD32F2F),
-  ),
-  NotificationModality.anemia: ModalityMeta(
-    label: 'Anemia / Pallor',
-    icon: Icons.bloodtype_rounded,
-    color: Color(0xFFC2185B),
-  ),
-  NotificationModality.respiratory: ModalityMeta(
-    label: 'Respiratory',
-    icon: Icons.air_rounded,
-    color: Color(0xFF0097A7),
-  ),
-  NotificationModality.retinopathy: ModalityMeta(
-    label: 'Retinopathy',
-    icon: Icons.visibility_rounded,
-    color: Color(0xFF7B1FA2),
-  ),
-  NotificationModality.vitals: ModalityMeta(
-    label: 'Vitals & Telemetry',
-    icon: Icons.monitor_heart_rounded,
-    color: Color(0xFF00897B),
-  ),
-  NotificationModality.mindSpace: ModalityMeta(
-    label: 'MindSpace',
-    icon: Icons.psychology_rounded,
-    color: Color(0xFF5C6BC0),
-  ),
-  NotificationModality.appointments: ModalityMeta(
-    label: 'Appointments',
-    icon: Icons.event_available_rounded,
-    color: Color(0xFF7C4DFF),
-  ),
-};
-
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
 
@@ -108,8 +35,6 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   String? _vitalsExpandedId;
 
   Timer? _refreshTimer;
-  NotificationModality _selectedModality = NotificationModality.all;
-  String _selectedUrgency = 'all';
 
   @override
   void initState() {
@@ -157,7 +82,10 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     final userId = authProvider.user?.id ?? '';
 
     try {
-      final alerts = await VitalsService.getDoctorAlerts(doctorId: userId);
+      final alerts = await VitalsService.getDoctorAlerts(
+        doctorId: userId,
+        authToken: authProvider.token,
+      );
       if (!mounted) return;
       setState(() {
         _vitalsAlerts = alerts;
@@ -189,7 +117,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
 
   Future<void> _markVitalsAsRead(String id) async {
     try {
-      await VitalsService.markAlertRead(alertId: id);
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      await VitalsService.markAlertRead(alertId: id, authToken: authProvider.token);
       setState(() {
         for (final a in _vitalsAlerts) {
           if (a['id'] == id) {
@@ -203,7 +132,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
 
   Future<void> _deleteVitalsAlert(String id) async {
     try {
-      await VitalsService.deleteAlert(alertId: id);
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      await VitalsService.deleteAlert(alertId: id, authToken: authProvider.token);
       setState(() {
         _vitalsAlerts.removeWhere((a) => a['id'] == id);
       });
@@ -515,216 +445,6 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     }
   }
 
-
-  NotificationModality _classifyItem(Map<String, dynamic> item) {
-    final source = (item['source'] ?? '').toString().toLowerCase();
-    final report = (item['report'] ?? item['clinicalReport'] ?? item['message'] ?? '').toString().toLowerCase();
-    final transcript = (item['transcript'] ?? '').toString().toLowerCase();
-    final combined = '$source $report $transcript';
-
-    if (source == 'appointment_request' || report.startsWith('appointment request') || combined.contains('preferred slot')) {
-      return NotificationModality.appointments;
-    }
-    if (source.contains('skin') || combined.contains('skin lesion') || combined.contains('melanoma') || combined.contains('carcinoma') || combined.contains('skin cancer')) {
-      return NotificationModality.skinCancer;
-    }
-    if (source.contains('heart') || source.contains('cardio') || combined.contains('heart sound') || combined.contains('auscultation') || combined.contains('murmur') || combined.contains('arrhythmia') || combined.contains('ecg')) {
-      return NotificationModality.cardiac;
-    }
-    if (source.contains('anemia') || source.contains('pallor') || combined.contains('conjunctival') || combined.contains('hemoglobin') || combined.contains('pallor')) {
-      return NotificationModality.anemia;
-    }
-    if (source.contains('respiratory') || combined.contains('respiratory') || combined.contains('lung sound') || combined.contains('crackles') || combined.contains('wheez') || combined.contains('fev1')) {
-      return NotificationModality.respiratory;
-    }
-    if (source.contains('retin') || combined.contains('retinopathy') || combined.contains('fundus') || combined.contains('macular') || combined.contains('retinal')) {
-      return NotificationModality.retinopathy;
-    }
-    if (source.contains('vital') || item.containsKey('vital_type') || combined.contains('blood pressure') || combined.contains('spo2') || combined.contains('heart rate') || combined.contains('tachycardia') || combined.contains('hypertension')) {
-      return NotificationModality.vitals;
-    }
-    if (source.contains('mindspace') || combined.contains('mindspace') || combined.contains('voice acoustic') || combined.contains('phq')) {
-      return NotificationModality.mindSpace;
-    }
-    return NotificationModality.all;
-  }
-
-  String _formatReadableTimestamp(dynamic rawDate) {
-    if (rawDate == null || rawDate.toString().isEmpty) return 'Recent';
-    try {
-      DateTime dt;
-      if (rawDate is DateTime) {
-        dt = rawDate.toLocal();
-      } else {
-        dt = DateTime.parse(rawDate.toString()).toLocal();
-      }
-      final now = DateTime.now();
-      final diff = now.difference(dt);
-
-      String rel;
-      if (diff.inSeconds < 45) {
-        rel = 'Just now';
-      } else if (diff.inMinutes < 60) {
-        rel = '${diff.inMinutes}m ago';
-      } else if (diff.inHours < 24) {
-        rel = '${diff.inHours}h ago';
-      } else {
-        rel = '${diff.inDays}d ago';
-      }
-
-      final h = dt.hour == 0 ? 12 : (dt.hour > 12 ? dt.hour - 12 : dt.hour);
-      final ap = dt.hour >= 12 ? 'PM' : 'AM';
-      final mi = dt.minute.toString().padLeft(2, '0');
-      final se = dt.second.toString().padLeft(2, '0');
-
-      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-      final datePart = (dt.year == now.year && dt.month == now.month && dt.day == now.day)
-          ? 'Today'
-          : '${dt.day} ${months[dt.month - 1]} ${dt.year}';
-
-      return '$datePart • $h:$mi:$se $ap ($rel)';
-    } catch (_) {
-      return rawDate.toString();
-    }
-  }
-
-  String _exactTimestamp(dynamic rawDate) {
-    if (rawDate == null || rawDate.toString().isEmpty) return 'N/A';
-    try {
-      DateTime dt;
-      if (rawDate is DateTime) {
-        dt = rawDate.toLocal();
-      } else {
-        dt = DateTime.parse(rawDate.toString()).toLocal();
-      }
-      final h = dt.hour == 0 ? 12 : (dt.hour > 12 ? dt.hour - 12 : dt.hour);
-      final ap = dt.hour >= 12 ? 'PM' : 'AM';
-      final mi = dt.minute.toString().padLeft(2, '0');
-      final se = dt.second.toString().padLeft(2, '0');
-      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-      return '${dt.day} ${months[dt.month - 1]} ${dt.year}, $h:$mi:$se $ap IST';
-    } catch (_) {
-      return rawDate.toString();
-    }
-  }
-
-  Widget _buildModalityBadge(NotificationModality mod, bool isDark) {
-    final meta = _modalityMetadata[mod] ?? _modalityMetadata[NotificationModality.all]!;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: meta.color.withOpacity(isDark ? 0.25 : 0.12),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: meta.color.withOpacity(0.4), width: 1),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(meta.icon, size: 12, color: meta.color),
-          const SizedBox(width: 4),
-          Text(
-            meta.label,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              color: meta.color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildModalityFilterBar(bool isDark) {
-    final allItems = [..._mentalNotifications, ..._vitalsAlerts];
-    return Container(
-      height: 44,
-      margin: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMedium, vertical: 6),
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        itemCount: NotificationModality.values.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final mod = NotificationModality.values[index];
-          final meta = _modalityMetadata[mod]!;
-          final isSelected = _selectedModality == mod;
-
-          final count = mod == NotificationModality.all
-              ? allItems.length
-              : allItems.where((i) => _classifyItem(i) == mod).length;
-
-          return InkWell(
-            onTap: () {
-              setState(() {
-                _selectedModality = mod;
-                if (mod == NotificationModality.vitals) {
-                  _tabController.animateTo(0);
-                } else if (mod != NotificationModality.all) {
-                  _tabController.animateTo(1);
-                }
-              });
-            },
-            borderRadius: BorderRadius.circular(20),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? meta.color
-                    : (isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.04)),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: isSelected ? meta.color : (isDark ? Colors.white12 : Colors.black12),
-                  width: isSelected ? 1.5 : 1.0,
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    meta.icon,
-                    size: 14,
-                    color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    meta.label,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                      color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
-                    ),
-                  ),
-                  if (count > 0) ...[
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? Colors.white.withOpacity(0.25)
-                            : meta.color.withOpacity(0.18),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        '$count',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          color: isSelected ? Colors.white : meta.color,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
   String _timeAgo(String isoDate) {
     try {
       final date = DateTime.parse(isoDate);
@@ -778,8 +498,6 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                   ],
                 ),
               ),
-
-              _buildModalityFilterBar(isDark),
 
               // Tab bar
               Container(
@@ -995,13 +713,10 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                           ),
                         ),
                         const SizedBox(width: 8),
-                        _buildModalityBadge(_classifyItem(a), isDark),
-                        const SizedBox(width: 8),
                         Text(
-                          _formatReadableTimestamp(a['created_at'] ?? a['timestamp']),
+                          _timeAgo(a['created_at'] ?? ''),
                           style: TextStyle(
                             fontSize: 11,
-                            fontWeight: FontWeight.w600,
                             color: isDark
                                 ? AppTheme.darkTextDim
                                 : AppTheme.textLight,
@@ -1086,12 +801,6 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                             ),
                           ),
                         ),
-                      _buildDetailRow(
-                        isDark,
-                        Icons.schedule_rounded,
-                        'Real Timestamp',
-                        _exactTimestamp(a['created_at'] ?? a['timestamp']),
-                      ),
                       _buildDetailRow(
                         isDark,
                         Icons.access_time,
@@ -1369,13 +1078,10 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                           ),
                         ),
                         const SizedBox(width: 8),
-                        _buildModalityBadge(_classifyItem(n), isDark),
-                        const SizedBox(width: 8),
                         Text(
-                          _formatReadableTimestamp(n['created_at'] ?? n['timestamp']),
+                          _timeAgo(n['created_at'] ?? ''),
                           style: TextStyle(
                             fontSize: 11,
-                            fontWeight: FontWeight.w600,
                             color: isDark
                                 ? AppTheme.darkTextDim
                                 : AppTheme.textLight,
@@ -1387,13 +1093,6 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                       const SizedBox(height: 12),
                       Divider(
                         color: isDark ? Colors.white12 : Colors.black12,
-                      ),
-                      const SizedBox(height: 8),
-                      _buildDetailRow(
-                        isDark,
-                        Icons.schedule_rounded,
-                        'Real Timestamp',
-                        _exactTimestamp(n['created_at'] ?? n['timestamp']),
                       ),
                       const SizedBox(height: 8),
                       Text(
@@ -1418,6 +1117,39 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                               : AppTheme.textDark,
                         ),
                       ),
+                      if ((n['location']?.toString().isNotEmpty ?? false) ||
+                          (n['maps_url']?.toString().isNotEmpty ?? false)) ...[
+                        const SizedBox(height: 10),
+                        _buildDetailRow(
+                          isDark,
+                          Icons.location_on,
+                          AppStrings.get('location', lang),
+                          (n['location']?.toString().isNotEmpty ?? false)
+                              ? n['location'].toString()
+                              : 'Shared',
+                        ),
+                        if (n['maps_url'] != null &&
+                            (n['maps_url'] as String).isNotEmpty)
+                          GestureDetector(
+                            onTap: () => launchUrl(Uri.parse(n['maps_url'])),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.map,
+                                    size: 14, color: Color(0xFF667EEA)),
+                                const SizedBox(width: 8),
+                                Text(
+                                  AppStrings.get('open_maps', lang),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF667EEA),
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
                       const SizedBox(height: 12),
                       if (_isAppointmentRequest(n))
                         _buildAppointmentActions(n, isDark, lang)

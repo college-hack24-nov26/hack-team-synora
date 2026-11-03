@@ -35,6 +35,12 @@ const clinicianCaseSchema = new mongoose.Schema({
     confidence: { type: Number, default: null },
   },
 
+  // Live patient location captured when the case was opened (for outreach).
+  latitude: { type: Number, default: null },
+  longitude: { type: Number, default: null },
+  locationLabel: { type: String, default: '' },
+  mapsUrl: { type: String, default: '' },
+
   // Non-diagnostic framing shown to the clinician (never "patient has X").
   summary: { type: String, default: '' },
   evidenceRefs: { type: [String], default: [] },   // ledger seqs / record ids

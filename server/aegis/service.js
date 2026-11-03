@@ -41,6 +41,13 @@ async function notifyDoctor(proposal, verdict) {
       `[Aegis ${verdict.actionClass}] ${proposal.summary || proposal.actionType}\n` +
       `Reasons: ${verdict.reasons.join('; ')}`,
     urgency: verdict.actionClass === 'RED' ? 'high' : 'moderate',
+    source: 'aegis',
+    latitude: typeof proposal.latitude === 'number' ? proposal.latitude : null,
+    longitude: typeof proposal.longitude === 'number' ? proposal.longitude : null,
+    locationLabel: proposal.locationLabel || '',
+    mapsUrl: proposal.mapsUrl
+      || (typeof proposal.latitude === 'number' && typeof proposal.longitude === 'number'
+        ? `https://www.google.com/maps?q=${proposal.latitude},${proposal.longitude}` : ''),
   });
 }
 
@@ -66,6 +73,12 @@ async function openCase(proposal, verdict, meta) {
       confidence: proposal.confidence,
     },
     summary: proposal.summary || 'Screening signal requires clinical review (non-diagnostic).',
+    latitude: typeof proposal.latitude === 'number' ? proposal.latitude : null,
+    longitude: typeof proposal.longitude === 'number' ? proposal.longitude : null,
+    locationLabel: proposal.locationLabel || '',
+    mapsUrl: proposal.mapsUrl
+      || (typeof proposal.latitude === 'number' && typeof proposal.longitude === 'number'
+        ? `https://www.google.com/maps?q=${proposal.latitude},${proposal.longitude}` : ''),
     auditSeq: meta.auditSeq,
     slaDeadline,
     dedupeKey: meta.dedupeKey,

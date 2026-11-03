@@ -19,7 +19,11 @@ const vitalsAlertSchema = new mongoose.Schema({
   message: { type: String, default: '' },
   vital: { type: String, default: '' },           // which metric (HR/SpO2/BP...)
   currentValue: { type: mongoose.Schema.Types.Mixed, default: null },
-  location: { type: String, default: '' },
+  location: { type: String, default: '' },     // human-readable label (legacy)
+  locationLabel: { type: String, default: '' }, // reverse-geocoded label
+  latitude: { type: Number, default: null },
+  longitude: { type: Number, default: null },
+  mapsUrl: { type: String, default: '' },
 
   read: { type: Boolean, default: false },
   raisedAt: { type: Date, default: Date.now },

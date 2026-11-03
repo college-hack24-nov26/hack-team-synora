@@ -7,9 +7,6 @@ import 'package:medicoscope/core/constants/api_constants.dart';
 import 'package:medicoscope/core/constants/disease_constants.dart';
 import 'package:medicoscope/models/disease_risk_result.dart';
 import 'package:medicoscope/services/location_service.dart';
-import 'package:medicoscope/services/sos_emergency_service.dart';
-import 'package:medicoscope/main.dart';
-import 'package:medicoscope/services/ambulance_service.dart';
 
 class DiseaseAlert {
   final String id;
@@ -61,7 +58,7 @@ class DiseaseAlert {
 /// Disease alerting uses the same semantic pipeline as vitals alerts:
 ///  • Store locally in SharedPreferences so patient / doctor see them instantly.
 ///  • Best-effort push to the backend's mental_health/notifications endpoint
-///    (same data shape - "urgency" + "patientId" + "clinicalReport") so
+///    (same data shape — "urgency" + "patientId" + "clinicalReport") so
 ///    doctors see them in the existing notifications center.
 class DiseaseAlertService {
   static const _key = 'disease_alerts';
@@ -104,7 +101,7 @@ class DiseaseAlertService {
     return alert;
   }
 
-  /// Entry point - called by every disease method screen after saving
+  /// Entry point — called by every disease method screen after saving
   /// the result. High / critical results create an alert + doctor notify.
   static Future<DiseaseAlert?> maybeAlert({
     required DiseaseRiskResult result,
@@ -117,36 +114,14 @@ class DiseaseAlertService {
     final alert = await _storeLocally(result);
 
     // Best-effort doctor notification via the existing backend endpoint, which
-    // now requires auth - forward the patient's token so the notification is
+    // now requires auth — forward the patient's token so the notification is
     // accepted and persisted (otherwise it would 401 and be lost).
-    // Resolve live location for doctor dispatch and SOS SMS
-    LocationFix fix = LocationFix.empty;
-    try {
-      fix = await LocationService.getFix();
-    } catch (_) {}
-
-    // 1. Dispatch SOS SMS with live GPS location to patient's emergency contact
-    try {
-      final diseaseTitle = DiseaseRegistry.of(result.disease).title;
-      final methodTitle = MethodRegistry.of(result.method).title;
-      final details = result.findings.isNotEmpty
-          ? result.findings.take(2).map((f) => '${f.name}: ${f.value} ${f.unit} (${f.flag})').join(', ')
-          : 'High risk screening finding requiring immediate attention.';
-
-      await SosEmergencyService.sendAlertSms(
-        alertType: 'disease_${result.disease.name}',
-        patientName: patientName,
-        severity: result.risk.label,
-        headline: '$diseaseTitle ($methodTitle): ${result.headline}',
-        details: details,
-        locationFix: fix,
-      );
-    } catch (_) {}
-
-    // 2. Best-effort doctor notification via the backend endpoint
     if (doctorId != null && doctorId.isNotEmpty && authToken != null) {
       try {
         final clinical = _buildClinicalReport(result);
+        // Attach the patient's live location so the doctor can locate them for
+        // a high/critical finding. Best-effort: null when unavailable.
+        final fix = await LocationService.getFix();
         await http
             .post(
               Uri.parse('${ApiConstants.baseUrl}/mental-health/notifications'),
@@ -168,7 +143,7 @@ class DiseaseAlertService {
             )
             .timeout(const Duration(seconds: 10));
       } catch (_) {
-        // Offline / server down - local alert is still stored.
+        // Offline / server down — local alert is still stored.
       }
     }
     return alert;
@@ -185,7 +160,7 @@ class DiseaseAlertService {
     if (r.findings.isNotEmpty) {
       buf.writeln('\nKey findings:');
       for (final f in r.findings) {
-        buf.writeln('  • ${f.name} ${f.value} ${f.unit} (${f.flag}) - ${f.interpretation}');
+        buf.writeln('  • ${f.name} ${f.value} ${f.unit} (${f.flag}) — ${f.interpretation}');
       }
     }
     if (r.recommendations.isNotEmpty) {
@@ -245,7 +220,7 @@ class DiseaseAlertService {
 
   /// Minimal-fields variant used by legacy modalities (skin scan, heart
   /// sound, OG vitals alerts) that don't build a full DiseaseRiskResult.
-  /// Only sends to the backend - no local store write.
+  /// Only sends to the backend — no local store write.
   static Future<void> sendGenericAlert({
     required String doctorId,
     required String patientId,
@@ -255,46 +230,9 @@ class DiseaseAlertService {
     required String source,
     String? authToken,
   }) async {
-    LocationFix fix = LocationFix.empty;
-    try {
-      fix = await LocationService.getFix();
-    } catch (_) {}
-
-    // Dispatch SOS SMS for high/critical findings
-    if (urgency.toLowerCase() == 'high' || urgency.toLowerCase() == 'critical') {
-      try {
-        await SosEmergencyService.sendAlertSms(
-          alertType: 'generic_$source',
-          patientName: patientName,
-          severity: urgency,
-          headline: 'Urgent screening finding: $source',
-          details: clinicalReport.length > 120
-              ? '${clinicalReport.substring(0, 120)}...'
-              : clinicalReport,
-          locationFix: fix,
-        );
-      } catch (_) {}
-
-      // If critical, trigger the 5-second ambulance booking popup
-      if (urgency.toLowerCase() == 'critical' || urgency.toLowerCase() == 'high') {
-        final navCtx = appNavigatorKey.currentContext;
-        if (navCtx != null) {
-          final isSkin = source.toLowerCase().contains('skin');
-          AmbulanceService.triggerCriticalAlertCountdown(
-            context: navCtx,
-            alertHeadline: isSkin ? 'Skin Cancer Emergency Alert' : 'Urgent clinical finding: $source',
-            alertSeverity: urgency.toUpperCase(),
-            patientName: patientName,
-            patientId: patientId,
-            details: clinicalReport,
-            countdownSeconds: 10,
-          );
-        }
-      }
-    }
-
     if (doctorId.isEmpty || authToken == null) return;
     try {
+      final fix = await LocationService.getFix();
       await http
           .post(
             Uri.parse('${ApiConstants.baseUrl}/mental-health/notifications'),
@@ -308,7 +246,7 @@ class DiseaseAlertService {
               'patientName': patientName,
               'clinicalReport': clinicalReport,
               'urgency': urgency,
-              'transcript': '[Auto] MedicoScope screening - $source',
+              'transcript': '[Auto] MedicoScope screening — $source',
               'source': source,
               ...fix.toJson(),
             }),

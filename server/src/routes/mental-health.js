@@ -15,11 +15,16 @@ const URGENCY_TO_RISK = { low: 'low', moderate: 'moderate', high: 'critical' };
 // pairs. Identity is bound below so a patient can only file for themselves.
 router.post('/notifications', auth, async (req, res) => {
   try {
-    const { doctorId, patientId, patientName, clinicalReport, urgency, transcript, source } = req.body;
+    const { doctorId, patientId, patientName, clinicalReport, urgency, transcript, source,
+            latitude, longitude, locationLabel, mapsUrl } = req.body;
 
     if (!doctorId || !patientId || !patientName || !clinicalReport) {
       return res.status(400).json({ message: 'Missing required fields' });
     }
+
+    const lat = typeof latitude === 'number' ? latitude : null;
+    const lng = typeof longitude === 'number' ? longitude : null;
+    const resolvedMapsUrl = mapsUrl || (lat != null && lng != null ? `https://www.google.com/maps?q=${lat},${lng}` : '');
 
     // A patient may only file a check-in for themselves. Doctors/admins (e.g.
     // filing on a patient's behalf) are allowed through.
@@ -35,6 +40,10 @@ router.post('/notifications', auth, async (req, res) => {
       urgency: urgency || 'low',
       transcript: transcript || '',
       source: source || 'mindspace',
+      latitude: lat,
+      longitude: lng,
+      locationLabel: locationLabel || '',
+      mapsUrl: resolvedMapsUrl,
     });
 
     // Route the check-in through the Aegis safety gate. The deterministic
@@ -51,6 +60,10 @@ router.post('/notifications', auth, async (req, res) => {
         actionType: 'mental_health_review',
         text: `${clinicalReport}\n${transcript || ''}`,
         summary: `MindSpace check-in (urgency: ${urgency || 'low'})`,
+        latitude: lat,
+        longitude: lng,
+        locationLabel: locationLabel || '',
+        mapsUrl: resolvedMapsUrl,
       });
     } catch (gateErr) {
       console.error('Aegis gate (mental-health) error:', gateErr.message);
@@ -86,6 +99,11 @@ router.get('/notifications/:doctorId', auth, async (req, res) => {
       report: n.clinicalReport,
       urgency: n.urgency,
       transcript: n.transcript,
+      source: n.source,
+      latitude: n.latitude ?? null,
+      longitude: n.longitude ?? null,
+      location: n.locationLabel || '',
+      maps_url: n.mapsUrl || '',
       read: n.read,
       created_at: n.createdAt.toISOString(),
     }));

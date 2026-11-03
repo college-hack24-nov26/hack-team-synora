@@ -63,21 +63,29 @@ router.post('/alerts', serviceAuth, async (req, res) => {
     const { doctorId, patientId, patientName, sessionId, location, alerts } = req.body || {};
     const list = Array.isArray(alerts) ? alerts : [];
     if (list.length === 0) return res.status(400).json({ message: 'alerts array required' });
-    const docs = list.map((a) => ({
-      alertId: a.id || a.alertId,
-      doctorId: doctorId || '',
-      patientId: patientId || '',
-      patientName: patientName || '',
-      sessionId: sessionId || '',
-      location: location || '',
-      type: a.type || '',
-      severity: a.severity || 'moderate',
-      message: a.message || '',
-      vital: a.vital || '',
-      currentValue: a.current_value ?? a.currentValue ?? null,
-      raisedAt: a.timestamp ? new Date(a.timestamp) : new Date(),
-      read: false,
-    }));
+    const docs = list.map((a) => {
+      const lat = a.latitude ?? req.body.latitude ?? null;
+      const lng = a.longitude ?? req.body.longitude ?? null;
+      return {
+        alertId: a.id || a.alertId,
+        doctorId: doctorId || '',
+        patientId: patientId || '',
+        patientName: patientName || '',
+        sessionId: sessionId || '',
+        location: a.location || location || '',
+        locationLabel: a.location || location || '',
+        latitude: typeof lat === 'number' ? lat : null,
+        longitude: typeof lng === 'number' ? lng : null,
+        mapsUrl: a.maps_url || (lat != null && lng != null ? `https://www.google.com/maps?q=${lat},${lng}` : ''),
+        type: a.type || '',
+        severity: a.severity || 'moderate',
+        message: a.message || '',
+        vital: a.vital || '',
+        currentValue: a.current_value ?? a.currentValue ?? null,
+        raisedAt: a.timestamp ? new Date(a.timestamp) : new Date(),
+        read: false,
+      };
+    });
     const created = await VitalsAlert.insertMany(docs);
     if (sessionId) {
       await VitalsSession.updateOne({ sessionId }, { $inc: { alertCount: docs.length } });
@@ -105,6 +113,10 @@ function toClientShape(a) {
     patient_id: a.patientId,
     patient_name: a.patientName,
     doctor_id: a.doctorId,
+    location: a.locationLabel || a.location || '',
+    latitude: a.latitude ?? null,
+    longitude: a.longitude ?? null,
+    maps_url: a.mapsUrl || '',
     read: a.read,
     timestamp: a.raisedAt ? a.raisedAt.toISOString() : null,
   };
