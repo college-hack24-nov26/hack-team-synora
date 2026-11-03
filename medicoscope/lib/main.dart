@@ -46,6 +46,8 @@ void main() {
   );
 }
 
+final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
+
 class MedicoScopeApp extends StatelessWidget {
   const MedicoScopeApp({super.key});
 
@@ -55,6 +57,7 @@ class MedicoScopeApp extends StatelessWidget {
     final localeProvider = Provider.of<LocaleProvider>(context);
 
     return MaterialApp(
+      navigatorKey: appNavigatorKey,
       title: 'MedicoScope',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,

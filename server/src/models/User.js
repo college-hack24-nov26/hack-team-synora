@@ -32,6 +32,12 @@ const userSchema = new mongoose.Schema({
     type: String,
     unique: true,
   },
+  // User-centric UI preferences, applied on login so theme/language follow the
+  // account across devices instead of living only in on-device storage.
+  preferences: {
+    theme: { type: String, default: 'system' },     // 'light' | 'dark' | 'system'
+    language: { type: String, default: 'en' },
+  },
 }, {
   timestamps: true,
 });
@@ -55,6 +61,7 @@ userSchema.methods.toPublicJSON = function () {
     phone: this.phone,
     role: this.role,
     uniqueCode: this.uniqueCode,
+    preferences: this.preferences || { theme: 'system', language: 'en' },
     createdAt: this.createdAt,
   };
 };

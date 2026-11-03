@@ -128,6 +128,7 @@ class _ImageUploadScreenState extends State<ImageUploadScreen> {
                     '${result.description}',
                 urgency: result.confidence > 0.75 ? 'high' : 'moderate',
                 source: 'skin_scan',
+                authToken: authProvider.token,
               );
             }
           }

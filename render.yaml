@@ -24,6 +24,11 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
+      # Live Node API base the chatbot calls for tools/invoke, aegis/submit,
+      # notifications and vitals. Must be the SAME host the Flutter app uses
+      # (chatbotBaseUrl's sibling), or the forwarded JWT 401s / routes 404.
+      - key: BACKEND_URL
+        value: https://medicoscope-api-lbto.onrender.com/api
       - key: GROQ_API_KEY
         sync: false
       - key: ANTHROPIC_API_KEY

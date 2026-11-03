@@ -30,9 +30,12 @@ router.get('/search', auth, async (req, res) => {
       },
     };
 
-    // Filter by specialization if provided
+    // Filter by specialization if provided. Escape regex metacharacters so a
+    // crafted value (e.g. '(a+)+$') can't cause catastrophic backtracking
+    // (ReDoS) or alter the query — treat the input as a literal substring.
     if (specialization && specialization !== 'All') {
-      query.specialization = { $regex: new RegExp(specialization, 'i') };
+      const escaped = String(specialization).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      query.specialization = { $regex: new RegExp(escaped, 'i') };
     }
 
     const nearbyDoctors = await NearbyDoctor.find(query);

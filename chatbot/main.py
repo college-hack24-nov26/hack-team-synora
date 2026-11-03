@@ -48,14 +48,47 @@ llm_streaming = ChatGroq(
 )
 
 # ── Config ─────────────────────────────────────────────────────────────────
-BACKEND_URL = os.getenv("BACKEND_URL", "https://medicoscope-server.onrender.com/api")
+BACKEND_URL = os.getenv("BACKEND_URL", "https://medicoscope-api-lbto.onrender.com/api")
+# Shared secret for service-to-service calls (vitals ingest). Must match the
+# Node server's SERVICE_KEY. If unset, the Node side warns and allows.
+SERVICE_KEY = os.getenv("SERVICE_KEY", "")
+
+
+def _service_headers() -> dict:
+    return {"X-Service-Key": SERVICE_KEY} if SERVICE_KEY else {}
+
+
+async def _backend_post(path: str, payload: dict, headers: dict | None = None) -> None:
+    """Best-effort POST to the Node backend; never raises into the request path.
+    Logs a non-2xx response (e.g. a SERVICE_KEY 401) instead of swallowing it,
+    so a mis-set key can't silently drop persisted alerts."""
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(f"{BACKEND_URL}{path}", json=payload, headers=headers or {})
+            if resp.status_code >= 400:
+                print(f"Warning: backend POST {path} -> HTTP {resp.status_code}: {resp.text[:200]}")
+    except Exception as e:
+        print(f"Warning: backend POST {path} failed: {e}")
+
+
+async def _backend_patch(path: str, payload: dict, headers: dict | None = None) -> None:
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            await client.patch(f"{BACKEND_URL}{path}", json=payload, headers=headers or {})
+    except Exception as e:
+        print(f"Warning: backend PATCH {path} failed: {e}")
+
 
 # ── In-memory stores ────────────────────────────────────────────────────────
+# NOTE: these are TRANSIENT working caches only. The durable source of truth is
+# MongoDB via the Node backend — chat history persists to /api/chat, and vitals
+# sessions/alerts persist to /api/vitals. The dicts below survive only within a
+# single process lifetime and are repopulated from the backend on cold start.
 session_histories: dict[str, list] = {}
 
 # ── Vitals in-memory stores ─────────────────────────────────────────────────
-vitals_sessions: dict[str, dict] = {}   # session_id -> session data
-vitals_alerts: dict[str, list] = {}     # doctor_id / patient_id -> [alerts]
+vitals_sessions: dict[str, dict] = {}   # session_id -> live simulator state (ephemeral by design)
+vitals_alerts: dict[str, list] = {}     # short-lived cache; Mongo is source of truth
 
 # ── Medical Knowledge Base ──────────────────────────────────────────────────
 MEDICAL_DATA = {
@@ -155,6 +188,21 @@ async def health():
     return {"status": "ok", "service": "hearme-chatbot"}
 
 
+# ── Aegis consult loop (agentic orchestration + SSE decision-trace) ──────────
+from aegis_consult import ConsultRequest, run_consult
+
+
+@app.post("/aegis/consult")
+async def aegis_consult(req: ConsultRequest):
+    """Streams the live agent decision-trace as Server-Sent Events.
+
+    The LLM plans/explains only; the deterministic Aegis gate (in the Node
+    backend) decides safety and executes/blocks actions. Degrades to a
+    deterministic planner if no LLM key is present, so it always completes.
+    """
+    return StreamingResponse(run_consult(req), media_type="text/event-stream")
+
+
 # ── Chat (non-streaming) ───────────────────────────────────────────────────
 
 @app.post("/chat")
@@ -239,6 +287,11 @@ async def analyze_mental_health(
     patient_name: str = Form(...),
     doctor_id: Optional[str] = Form(None),
     language: str = Form("en"),
+    auth_token: Optional[str] = Form(None),
+    latitude: Optional[float] = Form(None),
+    longitude: Optional[float] = Form(None),
+    location_label: Optional[str] = Form(None),
+    maps_url: Optional[str] = Form(None),
 ):
     try:
         # Save audio temporarily
@@ -308,11 +361,15 @@ Format as a professional clinical note. Respond in English."""
             elif any(w in report_lower for w in ["moderate urgency", "moderate", "concerning", "anxiety", "depression"]):
                 urgency = "moderate"
 
-            # Save notification to Node.js backend (MongoDB)
+            # Save notification to Node.js backend (MongoDB). The endpoint now
+            # requires auth: forward the signed-in user's bearer token so the
+            # backend can bind identity and gate RED cases safely.
             try:
+                headers = {"Authorization": f"Bearer {auth_token}"} if auth_token else {}
                 async with httpx.AsyncClient(timeout=10) as client:
                     await client.post(
                         f"{BACKEND_URL}/mental-health/notifications",
+                        headers=headers,
                         json={
                             "doctorId": doctor_id,
                             "patientId": patient_id,
@@ -320,6 +377,10 @@ Format as a professional clinical note. Respond in English."""
                             "clinicalReport": doctor_report,
                             "urgency": urgency,
                             "transcript": transcript,
+                            "latitude": latitude,
+                            "longitude": longitude,
+                            "locationLabel": location_label,
+                            "mapsUrl": maps_url,
                         },
                     )
             except Exception as notif_err:
@@ -406,6 +467,24 @@ ALERT_THRESHOLDS = {
 }
 
 
+def _apply_excursion(pt: dict) -> str:
+    """Push one vital just past an alert threshold. These are SIMULATED
+    excursions (the whole stream is simulated and labelled as such); without
+    them most scenarios never breach, so a monitoring session would show no
+    alerts at all. Returns the kind of excursion applied."""
+    kind = random.choice(["hr_high", "hr_high", "sys_high", "sys_high", "spo2_low", "hr_low"])
+    if kind == "hr_high":
+        pt["heart_rate"] = round(random.uniform(132, 165), 1)
+    elif kind == "sys_high":
+        pt["systolic"] = round(random.uniform(152, 178), 1)
+        pt["diastolic"] = round(random.uniform(95, 112), 1)
+    elif kind == "spo2_low":
+        pt["spo2"] = round(random.uniform(85, 91), 1)
+    elif kind == "hr_low":
+        pt["heart_rate"] = round(random.uniform(43, 49), 1)
+    return kind
+
+
 def _generate_vitals(session: dict) -> list[dict]:
     """Generate 1-3 simulated data points for a tick."""
     scenario = session["scenario"]
@@ -434,14 +513,22 @@ def _generate_vitals(session: dict) -> list[dict]:
         dia = max(40, min(130, dia))
         spo2 = max(70, min(100, spo2))
 
-        points.append({
+        pt = {
             "tick": tick,
             "timestamp": datetime.utcnow().isoformat() + "Z",
             "heart_rate": round(hr, 1),
             "systolic": round(sys_, 1),
             "diastolic": round(dia, 1),
             "spo2": round(spo2, 1),
-        })
+        }
+
+        # Simulated excursions so a session actually surfaces alerts: force one
+        # early (so the doctor/patient sees an alert quickly), then ~13% of
+        # points thereafter. Most readings still stay in the normal range.
+        if tick == 3 or random.random() < 0.13:
+            _apply_excursion(pt)
+
+        points.append(pt)
 
     session["tick_counter"] = tick
     return points
@@ -543,6 +630,16 @@ async def vitals_start(req: VitalsStartRequest):
     }
 
     vitals_sessions[session_id] = session
+
+    # Persist the session envelope to MongoDB (durable; survives restarts).
+    await _backend_post("/vitals/sessions", {
+        "sessionId": session_id,
+        "doctorId": req.doctor_id,
+        "patientId": req.patient_id,
+        "patientName": req.patient_name,
+        "location": req.location,
+    }, _service_headers())
+
     return {"session_id": session_id, "scenario": scenario}
 
 
@@ -564,12 +661,25 @@ async def vitals_tick(req: VitalsTickRequest):
         if patient_id:
             vitals_alerts.setdefault(f"pat_{patient_id}", []).extend(alerts)
 
+        # Persist to MongoDB so the doctor's alert history survives restarts.
+        await _backend_post("/vitals/alerts", {
+            "doctorId": doctor_id,
+            "patientId": patient_id,
+            "patientName": session.get("patient_name", ""),
+            "sessionId": req.session_id,
+            "location": session.get("location", ""),
+            "alerts": alerts,
+        }, _service_headers())
+        await _backend_patch(f"/vitals/sessions/{req.session_id}", {}, _service_headers())
+
     return {"data_points": points, "alerts": alerts}
 
 
 @app.delete("/vitals/session/{session_id}")
 async def vitals_stop(session_id: str):
     vitals_sessions.pop(session_id, None)
+    # Mark the session stopped in MongoDB.
+    await _backend_patch(f"/vitals/sessions/{session_id}", {"status": "stopped"}, _service_headers())
     return {"status": "stopped"}
 
 

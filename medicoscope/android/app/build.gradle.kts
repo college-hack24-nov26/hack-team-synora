@@ -6,9 +6,12 @@ plugins {
 }
 
 android {
-    namespace = "com.example.medicoscope"
+    namespace = "com.example.mobile_app"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    // Plugins require NDK >= 27. NDK is backward-compatible, so we pin to
+    // 28.0.12674087 which is ALREADY installed locally (avoids a multi-GB
+    // download of 27.0.x on a near-full disk).
+    ndkVersion = "28.0.12674087"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -21,10 +24,10 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.medicoscope"
+        applicationId = "com.example.mobile_app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        minSdk = 26  // Health Connect requires Android 8.0 (API 26)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -35,6 +38,11 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+            // R8 strips TFLite GPU delegate classes (GpuDelegateFactory$Options)
+            // and fails the build. Disable shrinking for now; a production build
+            // should instead add keep rules for org.tensorflow.lite.gpu.**.
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 }

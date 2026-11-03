@@ -48,6 +48,7 @@ class _PatientAlertsScreenState extends State<PatientAlertsScreen> {
     try {
       final alerts = await VitalsService.getPatientAlerts(
         patientId: patientId,
+        authToken: authProvider.token,
       );
       if (!mounted) return;
       setState(() {
@@ -62,7 +63,8 @@ class _PatientAlertsScreenState extends State<PatientAlertsScreen> {
 
   Future<void> _markAsRead(String id) async {
     try {
-      await VitalsService.markAlertRead(alertId: id);
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      await VitalsService.markAlertRead(alertId: id, authToken: authProvider.token);
       setState(() {
         for (final a in _alerts) {
           if (a['id'] == id) {

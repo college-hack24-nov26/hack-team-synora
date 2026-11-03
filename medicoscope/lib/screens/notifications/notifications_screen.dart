@@ -82,7 +82,10 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     final userId = authProvider.user?.id ?? '';
 
     try {
-      final alerts = await VitalsService.getDoctorAlerts(doctorId: userId);
+      final alerts = await VitalsService.getDoctorAlerts(
+        doctorId: userId,
+        authToken: authProvider.token,
+      );
       if (!mounted) return;
       setState(() {
         _vitalsAlerts = alerts;
@@ -114,7 +117,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
 
   Future<void> _markVitalsAsRead(String id) async {
     try {
-      await VitalsService.markAlertRead(alertId: id);
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      await VitalsService.markAlertRead(alertId: id, authToken: authProvider.token);
       setState(() {
         for (final a in _vitalsAlerts) {
           if (a['id'] == id) {
@@ -128,7 +132,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
 
   Future<void> _deleteVitalsAlert(String id) async {
     try {
-      await VitalsService.deleteAlert(alertId: id);
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      await VitalsService.deleteAlert(alertId: id, authToken: authProvider.token);
       setState(() {
         _vitalsAlerts.removeWhere((a) => a['id'] == id);
       });
@@ -1112,6 +1117,39 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                               : AppTheme.textDark,
                         ),
                       ),
+                      if ((n['location']?.toString().isNotEmpty ?? false) ||
+                          (n['maps_url']?.toString().isNotEmpty ?? false)) ...[
+                        const SizedBox(height: 10),
+                        _buildDetailRow(
+                          isDark,
+                          Icons.location_on,
+                          AppStrings.get('location', lang),
+                          (n['location']?.toString().isNotEmpty ?? false)
+                              ? n['location'].toString()
+                              : 'Shared',
+                        ),
+                        if (n['maps_url'] != null &&
+                            (n['maps_url'] as String).isNotEmpty)
+                          GestureDetector(
+                            onTap: () => launchUrl(Uri.parse(n['maps_url'])),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.map,
+                                    size: 14, color: Color(0xFF667EEA)),
+                                const SizedBox(width: 8),
+                                Text(
+                                  AppStrings.get('open_maps', lang),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF667EEA),
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
                       const SizedBox(height: 12),
                       if (_isAppointmentRequest(n))
                         _buildAppointmentActions(n, isDark, lang)
