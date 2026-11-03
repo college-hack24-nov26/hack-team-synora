@@ -11,6 +11,7 @@ import 'package:medicoscope/screens/dashboard/patient_dashboard_screen.dart';
 import 'package:medicoscope/screens/dashboard/doctor_dashboard_screen.dart';
 import 'package:medicoscope/screens/admin/admin_dashboard_screen.dart';
 import 'package:medicoscope/services/api_service.dart';
+import 'package:medicoscope/services/sos_emergency_service.dart';
 import 'package:provider/provider.dart';
 import 'package:medicoscope/core/theme/theme_provider.dart';
 
@@ -114,6 +115,16 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         hospital:
             widget.role == 'doctor' ? _hospitalController.text.trim() : null,
       );
+
+      if (widget.role == 'patient' &&
+          _emergencyPhoneController.text.trim().isNotEmpty) {
+        await SosEmergencyService.saveContact(
+          name: _emergencyNameController.text.trim(),
+          phone: _emergencyPhoneController.text.trim(),
+          relationship: _emergencyRelationship,
+          authToken: authProvider.token,
+        );
+      }
 
       if (!mounted) return;
 
@@ -482,7 +493,48 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       ),
       const SizedBox(height: AppTheme.spacingXLarge),
 
-      _sectionTitle(AppStrings.get('emergency_contact', lang), isDark),
+      Row(
+        children: [
+          const Icon(Icons.emergency_rounded, color: Color(0xFFFF5252), size: 20),
+          const SizedBox(width: 8),
+          Text(
+            AppStrings.get('sos_emergency_contact', lang),
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFFFF5252),
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 6),
+      Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFF5252).withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: const Color(0xFFFF5252).withValues(alpha: 0.25),
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.info_outline, color: Color(0xFFFF5252), size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                AppStrings.get('sos_notice', lang),
+                style: TextStyle(
+                  fontSize: 12,
+                  height: 1.3,
+                  color: isDark ? AppTheme.darkTextLight : AppTheme.textDark,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
       const SizedBox(height: AppTheme.spacingMedium),
 
       AuthTextField(
@@ -494,9 +546,18 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
       AuthTextField(
         controller: _emergencyPhoneController,
-        label: AppStrings.get('contact_phone', lang),
-        prefixIcon: Icons.phone_outlined,
+        label: "${AppStrings.get('contact_phone', lang)} (SOS)",
+        prefixIcon: Icons.phone_in_talk_outlined,
         keyboardType: TextInputType.phone,
+        validator: (v) {
+          if (v != null && v.trim().isNotEmpty) {
+            final digits = v.replaceAll(RegExp(r'[^0-9]'), '');
+            if (digits.length < 7) {
+              return AppStrings.get('sos_number_required', lang);
+            }
+          }
+          return null;
+        },
       ),
       const SizedBox(height: AppTheme.spacingMedium),
 
