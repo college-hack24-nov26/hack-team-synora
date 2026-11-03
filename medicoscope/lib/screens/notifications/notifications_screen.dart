@@ -1117,6 +1117,16 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                               : AppTheme.textDark,
                         ),
                       ),
+                      if (n['voice_marker_score'] != null) ...[
+                        const SizedBox(height: 10),
+                        _buildDetailRow(
+                          isDark,
+                          Icons.graphic_eq,
+                          'Voice marker',
+                          '${((n['voice_marker_score'] as num) * 100).round()}%'
+                              '${(n['voice_marker_headline']?.toString().isNotEmpty ?? false) ? ' - ${n['voice_marker_headline']}' : ''}',
+                        ),
+                      ],
                       if ((n['location']?.toString().isNotEmpty ?? false) ||
                           (n['maps_url']?.toString().isNotEmpty ?? false)) ...[
                         const SizedBox(height: 10),

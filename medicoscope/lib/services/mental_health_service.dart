@@ -11,6 +11,8 @@ class MentalHealthService {
     required String patientName,
     required String doctorId,
     String? authToken,
+    double? voiceMarkerScore,
+    String? voiceMarkerHeadline,
   }) async {
     final url = Uri.parse(
       '${ApiConstants.chatbotBaseUrl}${ApiConstants.mentalHealthAnalyze}',
@@ -35,6 +37,14 @@ class MentalHealthService {
       request.fields['longitude'] = fix.longitude.toString();
       request.fields['location_label'] = fix.label;
       request.fields['maps_url'] = fix.mapsUrl;
+    }
+
+    // On-device voice-biomarker score (screening) so the doctor alert can carry it.
+    if (voiceMarkerScore != null) {
+      request.fields['voice_marker_score'] = voiceMarkerScore.toString();
+      if (voiceMarkerHeadline != null) {
+        request.fields['voice_marker_headline'] = voiceMarkerHeadline;
+      }
     }
 
     // Render free-tier cold start + Whisper transcription can take up to
@@ -133,6 +143,7 @@ class MentalHealthService {
     String urgency = 'low',
     int coinsEarned = 0,
     String? doctorId,
+    double? voiceMarkerScore,
   }) async {
     try {
       final api = ApiService(token: token);
@@ -143,6 +154,7 @@ class MentalHealthService {
         'urgency': urgency,
         'coinsEarned': coinsEarned,
         'doctorId': doctorId,
+        'voiceMarkerScore': voiceMarkerScore,
       });
     } catch (_) {
       // Silently fail

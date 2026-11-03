@@ -1,202 +1,170 @@
-import 'dart:math' as math;
-
-import 'package:medicoscope/services/heart_audio_decoder.dart';
+import 'package:medicoscope/services/voice_calibration_store.dart';
+import 'package:medicoscope/services/voice_signal.dart';
 
 /// Result of voice acoustic-biomarker analysis. Deliberately NOT a
-/// DiseaseRiskResult: this screens a different domain (affective/voice
-/// markers), not the diabetes/hypertension/anemia deck.
+/// DiseaseRiskResult: this screens a different domain (affective / voice
+/// markers), not the diabetes / hypertension / anemia deck.
 class VoiceBiomarkerResult {
   final bool usable;
   final String headline;
-  final double speechRate; // approx syllable-onsets per second
-  final double pauseRatio; // fraction of the clip that is silence
-  final double pitchVariability; // normalised F0 spread (monotone ↓)
-  final double energyVariability; // loudness dynamics
-  final double markerScore; // 0..1 - elevated affective-marker load
-  final double confidence; // 0..1 - honest signal-quality confidence
+  final double markerScore; // 0..1 affective-marker load
+  final double confidence; // 0..1 honest signal-quality confidence
+  final bool calibrated;
+
+  // Real acoustic features (see VoiceSignal).
+  final double f0Mean; // Hz
+  final double f0Cv; // pitch variability (0 = monotone)
+  final double jitterPct;
+  final double shimmerPct;
+  final double hnrDb;
+  final double speechRate;
+  final double pauseRatio;
+  final double spectralTiltDb;
+  final double sqi;
+  final List<double> avgSpectrum;
   final List<String> notes;
 
   const VoiceBiomarkerResult({
     required this.usable,
     required this.headline,
-    this.speechRate = 0,
-    this.pauseRatio = 0,
-    this.pitchVariability = 0,
-    this.energyVariability = 0,
     this.markerScore = 0,
     this.confidence = 0,
+    this.calibrated = false,
+    this.f0Mean = 0,
+    this.f0Cv = 0,
+    this.jitterPct = 0,
+    this.shimmerPct = 0,
+    this.hnrDb = 0,
+    this.speechRate = 0,
+    this.pauseRatio = 0,
+    this.spectralTiltDb = 0,
+    this.sqi = 0,
+    this.avgSpectrum = const [],
     this.notes = const [],
   });
 
+  /// Compact payload persisted with the MindSpace session / doctor alert.
   Map<String, dynamic> toJson() => {
-        'usable': usable,
-        'headline': headline,
-        'speechRate': speechRate,
-        'pauseRatio': pauseRatio,
-        'pitchVariability': pitchVariability,
-        'energyVariability': energyVariability,
         'markerScore': markerScore,
         'confidence': confidence,
-        'notes': notes,
+        'calibrated': calibrated,
+        'f0Mean': f0Mean,
+        'f0Cv': f0Cv,
+        'jitterPct': jitterPct,
+        'shimmerPct': shimmerPct,
+        'hnrDb': hnrDb,
+        'speechRate': speechRate,
+        'pauseRatio': pauseRatio,
+        'headline': headline,
       };
 }
 
 /// Voice acoustic-biomarker analyzer.
 ///
-/// HONESTY NOTE: this measures REAL acoustic properties of the voice signal
-/// (speech rate, pausing, pitch/energy dynamics) that the affective-computing
-/// literature associates with low mood / psychomotor slowing (e.g. Cummins
-/// 2015, Mundt 2007). It is a SCREENING SIGNAL, never a diagnosis of
-/// depression - and it complements (does not replace) the existing transcript
-/// analysis. Reduced pitch variability ("monotone"), slow speech, and long
-/// pauses are the classic markers; we surface them with an honest confidence.
+/// HONESTY NOTE: this measures REAL acoustic properties of speech (autocorrelation
+/// F0 + pitch variability, jitter, shimmer, HNR, speech rate, pausing, spectral
+/// tilt). Slower, more monotone, more pausing speech with a flatter spectrum are
+/// acoustic markers ASSOCIATED with low mood / psychomotor slowing in the
+/// research literature (Cummins 2015, Mundt 2007). This is a SCREENING SIGNAL
+/// that complements the transcript, never a diagnosis of depression. With a
+/// personal voice calibration the markers are judged against the user's OWN
+/// baseline, which is far more meaningful than a population assumption.
 class VoiceBiomarkerAnalyzer {
-  /// Analyze the same WAV the MindSpace voice check-in already records.
-  static Future<VoiceBiomarkerResult> analyzeWavFile(String path) async {
-    final audio = await HeartAudioDecoder.decodeWavFile(path);
-    return analyze(audio.samples, audio.sampleRate);
+  static Future<VoiceBiomarkerResult> analyzeWavFile(String path,
+      {VoiceCalibration? calibration}) async {
+    final f = await VoiceSignal.analyzeWavFile(path);
+    return fromFeatures(f, calibration: calibration);
   }
 
-  static VoiceBiomarkerResult analyze(List<double> samples, int sampleRate) {
-    final durationSec = samples.length / sampleRate;
-    if (durationSec < 3) {
-      return const VoiceBiomarkerResult(
-        usable: false,
-        headline: 'Recording too short - please speak for at least 5 seconds.',
-        notes: ['Tap record and talk naturally for 5-15 seconds.'],
-      );
+  static VoiceBiomarkerResult analyze(List<double> samples, int sampleRate,
+      {VoiceCalibration? calibration}) {
+    final f = VoiceSignal.extract(samples: samples, sampleRate: sampleRate);
+    return fromFeatures(f, calibration: calibration);
+  }
+
+  static VoiceBiomarkerResult fromFeatures(VoiceFeatures f,
+      {VoiceCalibration? calibration}) {
+    if (!f.usable) {
+      return VoiceBiomarkerResult(usable: false, headline: f.reason);
     }
+    final calibrated = calibration != null;
 
-    // 1. Frame the signal into 25 ms windows (10 ms hop) - standard for speech.
-    final frameLen = (sampleRate * 0.025).round();
-    final hop = (sampleRate * 0.010).round();
-    if (frameLen < 8) {
-      return const VoiceBiomarkerResult(
-          usable: false, headline: 'Sample rate too low for voice analysis.');
+    double slowness, pausing, monotone, flatEnergy;
+    if (calibrated) {
+      // Change vs the user's OWN baseline (more sensitive + fair than absolutes).
+      final baseRate = calibration.baselineRate;
+      final baseF0Cv = calibration.refFeatures['f0cv'] ?? f.f0Cv;
+      final baseEnergyCv = calibration.refFeatures['energyCv'] ?? 0.6;
+      final basePause = calibration.refFeatures['pause'] ?? f.pauseRatio;
+      slowness = baseRate > 0
+          ? ((baseRate - f.speechRate) / baseRate).clamp(0.0, 1.0)
+          : (1.0 - (f.speechRate / 2.0)).clamp(0.0, 1.0);
+      monotone = baseF0Cv > 0
+          ? ((baseF0Cv - f.f0Cv) / baseF0Cv).clamp(0.0, 1.0)
+          : (1.0 - (f.f0Cv / 0.15)).clamp(0.0, 1.0);
+      flatEnergy = baseEnergyCv > 0
+          ? ((baseEnergyCv - f.energyCv) / baseEnergyCv).clamp(0.0, 1.0)
+          : 0.0;
+      pausing = (f.pauseRatio - basePause).clamp(0.0, 1.0);
+    } else {
+      slowness = (1.0 - (f.speechRate / 2.0)).clamp(0.0, 1.0); // < 2 onsets/s
+      pausing = f.pauseRatio.clamp(0.0, 1.0);
+      monotone = (1.0 - (f.f0Cv / 0.15)).clamp(0.0, 1.0);
+      flatEnergy = 0.0;
     }
-
-    final energies = <double>[];
-    final zcrs = <double>[];
-    for (int start = 0; start + frameLen <= samples.length; start += hop) {
-      double e = 0;
-      int zc = 0;
-      for (int i = 0; i < frameLen; i++) {
-        final s = samples[start + i];
-        e += s * s;
-        if (i > 0 &&
-            ((s >= 0) != (samples[start + i - 1] >= 0))) {
-          zc++;
-        }
-      }
-      energies.add(e / frameLen);
-      zcrs.add(zc / frameLen);
-    }
-    if (energies.length < 10) {
-      return const VoiceBiomarkerResult(
-          usable: false, headline: 'Not enough voiced frames to analyze.');
-    }
-
-    // 2. Voice-activity detection: a frame is "speech" if its energy is above
-    //    an adaptive floor (noise estimate from the quietest 10% of frames).
-    final sortedE = List<double>.from(energies)..sort();
-    final noiseFloor = sortedE[(sortedE.length * 0.10).floor()];
-    final peakE = sortedE[(sortedE.length * 0.95).floor()];
-    final speechThresh = noiseFloor + (peakE - noiseFloor) * 0.15;
-    final isSpeech = energies.map((e) => e > speechThresh).toList();
-
-    final speechFrames = isSpeech.where((b) => b).length;
-    final pauseRatio = 1.0 - speechFrames / isSpeech.length;
-
-    // 3. Speech rate proxy: count onset transitions (silence→speech) per second.
-    int onsets = 0;
-    for (int i = 1; i < isSpeech.length; i++) {
-      if (isSpeech[i] && !isSpeech[i - 1]) onsets++;
-    }
-    final speechRate = onsets / durationSec; // syllable-group onsets/sec
-
-    // 4. Pitch-variability proxy via ZCR spread over voiced frames (higher ZCR
-    //    spread ≈ more pitch movement; a flat ZCR ≈ monotone delivery).
-    final voicedZcr = <double>[];
-    for (int i = 0; i < zcrs.length; i++) {
-      if (isSpeech[i]) voicedZcr.add(zcrs[i]);
-    }
-    final pitchVariability = voicedZcr.length > 2
-        ? _coefficientOfVariation(voicedZcr).clamp(0.0, 2.0)
-        : 0.0;
-
-    // 5. Energy (loudness) dynamics over voiced frames.
-    final voicedE = <double>[];
-    for (int i = 0; i < energies.length; i++) {
-      if (isSpeech[i]) voicedE.add(energies[i]);
-    }
-    final energyVariability = voicedE.length > 2
-        ? _coefficientOfVariation(voicedE).clamp(0.0, 3.0)
-        : 0.0;
-
-    // 6. Confidence - honest signal quality. Needs enough speech, a decent
-    //    SNR (peak vs noise floor), and adequate duration.
-    final snr = peakE / math.max(noiseFloor, 1e-9);
-    final snrQ = (math.log(snr + 1) / math.log(50)).clamp(0.0, 1.0);
-    final speechQ = (speechFrames / 50.0).clamp(0.0, 1.0);
-    final durQ = ((durationSec - 3) / 7).clamp(0.0, 1.0);
-    final confidence = (snrQ * 0.45 + speechQ * 0.35 + durQ * 0.20);
-
-    if (confidence < 0.2 || speechFrames < 10) {
-      return VoiceBiomarkerResult(
-        usable: false,
-        headline: 'Too quiet or noisy to read voice markers reliably.',
-        confidence: confidence,
-        notes: const [
-          'Find a quiet room, hold the phone ~20 cm away, and speak naturally.'
-        ],
-      );
-    }
-
-    // 7. Marker score - combine the three classic low-mood acoustic markers.
-    //    Slow speech, high pausing, and LOW pitch variability (monotone) all
-    //    push the score up. Each term is bounded; the score is screening-grade.
-    final slowness = (1.0 - (speechRate / 2.0)).clamp(0.0, 1.0); // <2 onsets/s
-    final pausing = pauseRatio.clamp(0.0, 1.0);
-    final monotone = (1.0 - (pitchVariability / 0.6)).clamp(0.0, 1.0);
     final markerScore =
-        (slowness * 0.35 + pausing * 0.30 + monotone * 0.35).clamp(0.0, 1.0);
+        (slowness * 0.32 + pausing * 0.26 + monotone * 0.30 + flatEnergy * 0.12)
+            .clamp(0.0, 1.0);
+
+    double confidence;
+    if (calibrated) {
+      confidence = (0.5 + 0.35 * f.sqi).clamp(0.0, 0.8);
+      if (calibration.isStale) confidence *= 0.85;
+    } else {
+      confidence = (0.3 + 0.35 * f.sqi).clamp(0.0, 0.6);
+    }
 
     String headline;
     if (markerScore >= 0.6) {
-      headline =
-          'Voice shows several low-mood acoustic markers (slow, monotone, long pauses).';
+      headline = calibrated
+          ? 'Voice is notably slower / flatter than your baseline.'
+          : 'Several low-mood voice markers (slow, monotone, pausing).';
     } else if (markerScore >= 0.4) {
-      headline = 'Some voice markers of low mood present - worth a check-in.';
+      headline = 'Some voice markers worth noting - talk it through.';
     } else {
-      headline = 'Voice acoustics within an expressive, typical range.';
+      headline = 'Voice markers within a typical range.';
     }
+    final lowConf = confidence < 0.35;
+    if (lowConf && markerScore >= 0.6) {
+      headline =
+          'Possible voice markers, but the recording was noisy - try again in a quiet room.';
+    }
+    if (!calibrated) headline = '$headline (uncalibrated)';
 
     return VoiceBiomarkerResult(
       usable: true,
       headline: headline,
-      speechRate: double.parse(speechRate.toStringAsFixed(2)),
-      pauseRatio: double.parse(pauseRatio.toStringAsFixed(2)),
-      pitchVariability: double.parse(pitchVariability.toStringAsFixed(2)),
-      energyVariability: double.parse(energyVariability.toStringAsFixed(2)),
       markerScore: double.parse(markerScore.toStringAsFixed(2)),
       confidence: double.parse(confidence.toStringAsFixed(2)),
+      calibrated: calibrated,
+      f0Mean: double.parse(f.f0Mean.toStringAsFixed(0)),
+      f0Cv: double.parse(f.f0Cv.toStringAsFixed(2)),
+      jitterPct: double.parse(f.jitterPct.toStringAsFixed(1)),
+      shimmerPct: double.parse(f.shimmerPct.toStringAsFixed(1)),
+      hnrDb: double.parse(f.hnrDb.toStringAsFixed(1)),
+      speechRate: double.parse(f.speechRate.toStringAsFixed(1)),
+      pauseRatio: double.parse(f.pauseRatio.toStringAsFixed(2)),
+      spectralTiltDb: double.parse(f.spectralTiltDb.toStringAsFixed(1)),
+      sqi: f.sqi,
+      avgSpectrum: f.avgSpectrum,
       notes: [
         'Screening signal only - NOT a diagnosis of depression.',
-        'Complements the transcript analysis; combine with how you actually feel.',
+        'Complements the transcript analysis; both are supportive, not diagnostic.',
+        if (!calibrated)
+          'Calibrate your baseline voice once (on a calm day) for a far more meaningful read.',
         if (markerScore >= 0.6 && confidence >= 0.4)
-          'If low mood persists, please talk to someone - your linked doctor can help.',
+          'If low mood persists, please talk to someone you trust or a professional.',
       ],
     );
-  }
-
-  static double _coefficientOfVariation(List<double> xs) {
-    final mean = xs.reduce((a, b) => a + b) / xs.length;
-    if (mean.abs() < 1e-12) return 0;
-    double v = 0;
-    for (final x in xs) {
-      final d = x - mean;
-      v += d * d;
-    }
-    return math.sqrt(v / xs.length) / mean.abs();
   }
 }

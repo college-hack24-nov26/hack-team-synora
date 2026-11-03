@@ -8,7 +8,7 @@ const router = express.Router();
 // POST /api/mindspace/session - save a mindspace session
 router.post('/session', auth, async (req, res) => {
   try {
-    const { transcript, userMessage, doctorReport, urgency, coinsEarned, doctorId } = req.body;
+    const { transcript, userMessage, doctorReport, urgency, coinsEarned, doctorId, voiceMarkerScore } = req.body;
 
     const session = new MindSpaceSession({
       userId: req.user._id,
@@ -18,6 +18,7 @@ router.post('/session', auth, async (req, res) => {
       urgency: urgency || 'low',
       coinsEarned: coinsEarned || 0,
       doctorId: doctorId || null,
+      voiceMarkerScore: typeof voiceMarkerScore === 'number' ? voiceMarkerScore : null,
     });
 
     await session.save();
@@ -33,7 +34,7 @@ router.get('/history', auth, async (req, res) => {
   try {
     const sessions = await MindSpaceSession.find({ userId: req.user._id })
       .sort({ createdAt: -1 })
-      .select('transcript userMessage urgency coinsEarned createdAt')
+      .select('transcript userMessage urgency coinsEarned voiceMarkerScore createdAt')
       .lean();
 
     res.json({ sessions });
@@ -54,7 +55,7 @@ router.get('/doctor/:patientId', auth, roleCheck('doctor'), async (req, res) => 
       doctorReport: { $ne: null },
     })
       .sort({ createdAt: -1 })
-      .select('transcript doctorReport urgency createdAt')
+      .select('transcript doctorReport urgency voiceMarkerScore createdAt')
       .lean();
 
     res.json({ sessions });

@@ -218,7 +218,7 @@ function registerAll(kb = { thresholds: [] }) {
         score: r.markerScore ?? 0,
         confidence: r.confidence ?? 0,
         contributesTo: ['mental_health'],
-        provenance: { method: 'on-device voice acoustic DSP' },
+        provenance: { method: 'autocorrelation F0 + jitter/shimmer/HNR + spectral tilt', source: 'MedicoScope on-device DSP' },
         raw: r,
       };
     }
@@ -243,7 +243,7 @@ function registerAll(kb = { thresholds: [] }) {
         score: r.distressScore ?? 0,
         confidence: r.confidence ?? 0,
         contributesTo: ['respiratory'],
-        provenance: { method: 'on-device respiratory acoustic DSP' },
+        provenance: { method: 'envelope-FFT breathing rate + STFT wheeze/crackle', source: 'MedicoScope on-device DSP' },
         raw: r,
       };
     }

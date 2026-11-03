@@ -16,7 +16,8 @@ const URGENCY_TO_RISK = { low: 'low', moderate: 'moderate', high: 'critical' };
 router.post('/notifications', auth, async (req, res) => {
   try {
     const { doctorId, patientId, patientName, clinicalReport, urgency, transcript, source,
-            latitude, longitude, locationLabel, mapsUrl } = req.body;
+            latitude, longitude, locationLabel, mapsUrl,
+            voiceMarkerScore, voiceMarkerHeadline } = req.body;
 
     if (!doctorId || !patientId || !patientName || !clinicalReport) {
       return res.status(400).json({ message: 'Missing required fields' });
@@ -44,6 +45,8 @@ router.post('/notifications', auth, async (req, res) => {
       longitude: lng,
       locationLabel: locationLabel || '',
       mapsUrl: resolvedMapsUrl,
+      voiceMarkerScore: typeof voiceMarkerScore === 'number' ? voiceMarkerScore : null,
+      voiceMarkerHeadline: voiceMarkerHeadline || '',
     });
 
     // Route the check-in through the Aegis safety gate. The deterministic
@@ -104,6 +107,8 @@ router.get('/notifications/:doctorId', auth, async (req, res) => {
       longitude: n.longitude ?? null,
       location: n.locationLabel || '',
       maps_url: n.mapsUrl || '',
+      voice_marker_score: n.voiceMarkerScore ?? null,
+      voice_marker_headline: n.voiceMarkerHeadline || '',
       read: n.read,
       created_at: n.createdAt.toISOString(),
     }));

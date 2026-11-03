@@ -292,6 +292,8 @@ async def analyze_mental_health(
     longitude: Optional[float] = Form(None),
     location_label: Optional[str] = Form(None),
     maps_url: Optional[str] = Form(None),
+    voice_marker_score: Optional[float] = Form(None),
+    voice_marker_headline: Optional[str] = Form(None),
 ):
     try:
         # Save audio temporarily
@@ -381,6 +383,8 @@ Format as a professional clinical note. Respond in English."""
                             "longitude": longitude,
                             "locationLabel": location_label,
                             "mapsUrl": maps_url,
+                            "voiceMarkerScore": voice_marker_score,
+                            "voiceMarkerHeadline": voice_marker_headline,
                         },
                     )
             except Exception as notif_err:

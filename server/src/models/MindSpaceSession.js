@@ -32,6 +32,11 @@ const mindSpaceSessionSchema = new mongoose.Schema({
     ref: 'User',
     default: null,
   },
+  // On-device voice acoustic-biomarker score (0..1), screening-only.
+  voiceMarkerScore: {
+    type: Number,
+    default: null,
+  },
 }, {
   timestamps: true,
 });

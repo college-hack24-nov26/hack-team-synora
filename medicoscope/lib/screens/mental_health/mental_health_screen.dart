@@ -9,6 +9,9 @@ import 'package:medicoscope/core/providers/coins_provider.dart';
 import 'package:medicoscope/core/widgets/glass_card.dart';
 import 'package:medicoscope/services/mental_health_service.dart';
 import 'package:medicoscope/services/voice_biomarker_analyzer.dart';
+import 'package:medicoscope/services/voice_calibration_store.dart';
+import 'package:medicoscope/services/voice_signal.dart';
+import 'package:medicoscope/widgets/audio_waveform.dart';
 import 'package:medicoscope/services/api_service.dart';
 import 'package:medicoscope/core/constants/api_constants.dart';
 import 'package:medicoscope/screens/rewards/rewards_screen.dart';
@@ -43,6 +46,13 @@ class _MentalHealthScreenState extends State<MentalHealthScreen>
   // recording; screening signal only, never a diagnosis).
   VoiceBiomarkerResult? _voiceMarkers;
 
+  // Personal voice baseline (calibration) + live capture feedback.
+  VoiceCalibration? _voiceCal;
+  bool _calibrating = false;
+  StreamSubscription<Amplitude>? _ampSub;
+  final List<double> _levels = [];
+  double _level = 0;
+
   // Pulse animation for mic button
   late AnimationController _pulseController;
   // Rotation animation for hourglass
@@ -60,6 +70,13 @@ class _MentalHealthScreenState extends State<MentalHealthScreen>
       duration: const Duration(milliseconds: 1500),
     );
     _fetchLinkedDoctor();
+    _loadVoiceCalibration();
+  }
+
+  Future<void> _loadVoiceCalibration() async {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final c = await VoiceCalibrationStore.load(auth.user?.id ?? '');
+    if (mounted) setState(() => _voiceCal = c);
   }
 
   Future<void> _fetchLinkedDoctor() async {
@@ -81,13 +98,14 @@ class _MentalHealthScreenState extends State<MentalHealthScreen>
   @override
   void dispose() {
     _countdownTimer?.cancel();
+    _ampSub?.cancel();
     _pulseController.dispose();
     _hourglassController.dispose();
     _recorder.dispose();
     super.dispose();
   }
 
-  Future<void> _startRecording() async {
+  Future<void> _startRecording({bool forCalibration = false}) async {
     // Explicit permission request - `record` will prompt on first use.
     final granted = await _recorder.hasPermission();
     if (!granted) {
@@ -118,15 +136,28 @@ class _MentalHealthScreenState extends State<MentalHealthScreen>
 
       if (!mounted) return;
       setState(() {
+        _calibrating = forCalibration;
         _isRecording = true;
         _secondsLeft = 30;
         _responseText = null;
         _showCoins = false;
         _recordedPath = path;
         _voiceMarkers = null;
+        _levels.clear();
       });
 
       _pulseController.repeat();
+      _ampSub = _recorder
+          .onAmplitudeChanged(const Duration(milliseconds: 120))
+          .listen((amp) {
+        final lvl = ((amp.current + 45) / 45).clamp(0.0, 1.0);
+        if (!mounted) return;
+        setState(() {
+          _level = lvl;
+          _levels.add(lvl);
+          if (_levels.length > 60) _levels.removeAt(0);
+        });
+      });
 
       _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
         if (!mounted) {
@@ -151,6 +182,8 @@ class _MentalHealthScreenState extends State<MentalHealthScreen>
 
   Future<void> _stopRecording() async {
     _countdownTimer?.cancel();
+    await _ampSub?.cancel();
+    _ampSub = null;
     _pulseController.stop();
     _pulseController.reset();
 
@@ -161,7 +194,50 @@ class _MentalHealthScreenState extends State<MentalHealthScreen>
     });
     _hourglassController.repeat();
 
-    await _analyzeAudio(path ?? _recordedPath ?? '');
+    if (_calibrating) {
+      await _finishCalibration(path ?? _recordedPath ?? '');
+    } else {
+      await _analyzeAudio(path ?? _recordedPath ?? '');
+    }
+  }
+
+  Future<void> _finishCalibration(String filePath) async {
+    _hourglassController.stop();
+    _hourglassController.reset();
+    try {
+      final feats = await VoiceSignal.analyzeWavFile(filePath);
+      if (!mounted) return;
+      if (!feats.usable) {
+        setState(() {
+          _isProcessing = false;
+          _calibrating = false;
+          _responseText = 'Calibration needs clear speech. ${feats.reason}';
+        });
+        return;
+      }
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      final calib = VoiceCalibration(
+        refFeatures: feats.toVector(),
+        timestamp: DateTime.now(),
+      );
+      await VoiceCalibrationStore.save(auth.user?.id ?? '', calib);
+      if (!mounted) return;
+      setState(() {
+        _voiceCal = calib;
+        _calibrating = false;
+        _isProcessing = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text(
+              'Baseline voice saved. Future check-ins are judged against your own normal.')));
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _isProcessing = false;
+        _calibrating = false;
+        _responseText = 'Could not save calibration. Please try again.';
+      });
+    }
   }
 
   Future<void> _analyzeAudio(String filePath) async {
@@ -196,6 +272,15 @@ class _MentalHealthScreenState extends State<MentalHealthScreen>
       }
     } catch (_) {}
 
+    // On-device voice acoustic-biomarker pass FIRST (on the same recording),
+    // judged against the personal baseline if calibrated, so the score can be
+    // sent with the upload (doctor alert) and saved with the session.
+    try {
+      final markers = await VoiceBiomarkerAnalyzer.analyzeWavFile(filePath,
+          calibration: _voiceCal);
+      if (mounted && markers.usable) setState(() => _voiceMarkers = markers);
+    } catch (_) {/* non-fatal - voice markers are supplementary */}
+
     try {
       final result = await MentalHealthService.uploadAudio(
         filePath: filePath,
@@ -203,6 +288,8 @@ class _MentalHealthScreenState extends State<MentalHealthScreen>
         patientName: user?.name ?? 'Unknown',
         doctorId: _linkedDoctorId,
         authToken: authProvider.token,
+        voiceMarkerScore: _voiceMarkers?.markerScore,
+        voiceMarkerHeadline: _voiceMarkers?.headline,
       );
 
       final coins = result['coins_earned'] as int? ?? 0;
@@ -235,18 +322,8 @@ class _MentalHealthScreenState extends State<MentalHealthScreen>
           urgency: result['urgency'] as String? ?? 'low',
           coinsEarned: coins,
           doctorId: _linkedDoctorId.isNotEmpty ? _linkedDoctorId : null,
+          voiceMarkerScore: _voiceMarkers?.markerScore,
         );
-      }
-
-      // On-device voice acoustic-biomarker pass on the SAME recording. Reuses
-      // audio we already captured; complements the transcript. Best-effort.
-      if (filePath.isNotEmpty) {
-        try {
-          final markers = await VoiceBiomarkerAnalyzer.analyzeWavFile(filePath);
-          if (mounted && markers.usable) {
-            setState(() => _voiceMarkers = markers);
-          }
-        } catch (_) {/* non-fatal - voice markers are supplementary */}
       }
     } catch (e) {
       _hourglassController.stop();
@@ -513,6 +590,49 @@ class _MentalHealthScreenState extends State<MentalHealthScreen>
                           ),
                         ).animate().fadeIn(),
 
+                      // Live waveform + mic level while recording.
+                      if (_isRecording) ...[
+                        const SizedBox(height: 16),
+                        Padding(
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 24),
+                          child: LiveWaveform(_levels,
+                              color: const Color(0xFF7C4DFF)),
+                        ),
+                        const SizedBox(height: 10),
+                        Padding(
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 40),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(6),
+                            child: LinearProgressIndicator(
+                              value: _level,
+                              minHeight: 7,
+                              backgroundColor:
+                                  (isDark ? Colors.white : Colors.black)
+                                      .withValues(alpha: .08),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                  _level > 0.12
+                                      ? const Color(0xFF2ECC71)
+                                      : const Color(0xFFF0B45C)),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          _calibrating
+                              ? 'Calibration: speak calmly and naturally'
+                              : (_level < 0.08
+                                  ? 'Speak a little louder / closer'
+                                  : 'Good level - keep talking'),
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: isDark
+                                  ? AppTheme.darkTextGray
+                                  : AppTheme.textGray),
+                        ),
+                      ],
+
                       // Processing indicator
                       if (_isProcessing)
                         Column(
@@ -537,7 +657,13 @@ class _MentalHealthScreenState extends State<MentalHealthScreen>
                           ],
                         ),
 
-                      const SizedBox(height: 30),
+                      const SizedBox(height: 20),
+
+                      // Voice calibration status + action (idle only).
+                      if (!_isRecording && !_isProcessing)
+                        _calibrationCard(isDark),
+
+                      const SizedBox(height: 12),
 
                       // Coin animation
                       if (_showCoins && _coinsEarned > 0)
@@ -665,6 +791,36 @@ class _MentalHealthScreenState extends State<MentalHealthScreen>
     );
   }
 
+  Widget _calibrationCard(bool isDark) {
+    final calibrated = _voiceCal != null;
+    const accent = Color(0xFF7C4DFF);
+    return GlassCard(
+      padding: const EdgeInsets.all(AppTheme.spacingMedium),
+      child: Row(
+        children: [
+          Icon(calibrated ? Icons.verified : Icons.tune,
+              size: 18, color: calibrated ? const Color(0xFF2ECC71) : accent),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              calibrated
+                  ? 'Voice baseline set ${_voiceCal!.age.inDays} day(s) ago${_voiceCal!.isStale ? ' • re-calibrate' : ''} - check-ins compare to your normal'
+                  : 'Set your baseline voice once (on a calm day) so check-ins compare to YOUR normal.',
+              style: TextStyle(
+                  fontSize: 11.5,
+                  height: 1.3,
+                  color: isDark ? AppTheme.darkTextLight : AppTheme.textDark),
+            ),
+          ),
+          TextButton(
+            onPressed: () => _startRecording(forCalibration: true),
+            child: Text(calibrated ? 'Redo' : 'Calibrate'),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// Supplementary, on-device voice acoustic-biomarker card. Honest framing:
   /// a screening signal that complements the transcript, never a diagnosis.
   Widget _buildVoiceMarkersCard(VoiceBiomarkerResult m, bool isDark) {
@@ -719,12 +875,28 @@ class _MentalHealthScreenState extends State<MentalHealthScreen>
             spacing: 8,
             runSpacing: 6,
             children: [
-              _chip('Speech rate ${m.speechRate}/s', isDark),
+              _chip('Pitch ${m.f0Mean.toStringAsFixed(0)} Hz', isDark),
+              _chip('Pitch var ${m.f0Cv}', isDark),
+              _chip('Jitter ${m.jitterPct}%', isDark),
+              _chip('Shimmer ${m.shimmerPct}%', isDark),
+              _chip('HNR ${m.hnrDb} dB', isDark),
+              _chip('Speech ${m.speechRate}/s', isDark),
               _chip('Pauses ${(m.pauseRatio * 100).round()}%', isDark),
-              _chip('Pitch var ${m.pitchVariability}', isDark),
+              _chip(m.calibrated ? 'Calibrated' : 'Uncalibrated', isDark),
               _chip('Confidence $conf%', isDark),
             ],
           ),
+          if (m.avgSpectrum.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text('Voice spectrum (0-4 kHz)',
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? AppTheme.darkTextGray : AppTheme.textGray)),
+            const SizedBox(height: 6),
+            SpectrumBars(m.avgSpectrum,
+                color: const Color(0xFF7C4DFF), height: 56),
+          ],
           const SizedBox(height: 10),
           Text(
             'Screening signal only - not a diagnosis. It complements what you shared, and how you actually feel matters most.',
