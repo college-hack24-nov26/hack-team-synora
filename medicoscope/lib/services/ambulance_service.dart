@@ -23,7 +23,7 @@ class AmbulanceService {
     required String patientName,
     String? patientId,
     String? details,
-    int countdownSeconds = 10,
+    int countdownSeconds = 5,
   }) {
     if (_isCountdownShowing) return;
     _isCountdownShowing = true;
