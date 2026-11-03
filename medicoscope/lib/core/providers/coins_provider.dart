@@ -238,7 +238,7 @@ class CoinsProvider extends ChangeNotifier {
         'streak7Claimed': _streak7Claimed,
       });
     } catch (_) {
-      // Silently fail — local data is primary
+      // Silently fail - local data is primary
     }
   }
 }

@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 /**
- * PatientMemory — long-term, one doc per patient. Distilled facts the agent
+ * PatientMemory - long-term, one doc per patient. Distilled facts the agent
  * should carry across episodes + a bounded risk timeline + a cached summary
  * (the server analog of disease_risk_store.chatbotSummary()).
  */

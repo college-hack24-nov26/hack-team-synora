@@ -61,7 +61,7 @@ class _NearbyDoctorsScreenState extends State<NearbyDoctorsScreen> {
         return;
       }
 
-      // 2. Ask the user for permission — this pops the Android dialog.
+      // 2. Ask the user for permission - this pops the Android dialog.
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
@@ -103,7 +103,7 @@ class _NearbyDoctorsScreenState extends State<NearbyDoctorsScreen> {
       _userLocation = LatLng(position.latitude, position.longitude);
       _recommendations = await SpecialtyRecommender.recommend();
 
-      // Move the map immediately to the user — loadHospitals will fit bounds.
+      // Move the map immediately to the user - loadHospitals will fit bounds.
       if (mounted) {
         setState(() {});
         try {
@@ -186,7 +186,7 @@ class _NearbyDoctorsScreenState extends State<NearbyDoctorsScreen> {
 
   /// Launch Google Maps turn-by-turn navigation to the selected hospital.
   /// Tries in order:
-  ///   1. Android: `google.navigation:` — opens the Google Maps app directly
+  ///   1. Android: `google.navigation:` - opens the Google Maps app directly
   ///      in navigation mode (driving, turn-by-turn).
   ///   2. iOS / universal: `comgooglemaps://` app URL scheme with a
   ///      "directions" action.
@@ -196,12 +196,12 @@ class _NearbyDoctorsScreenState extends State<NearbyDoctorsScreen> {
     final lat = h.location.latitude;
     final lng = h.location.longitude;
 
-    // Android navigation deep link — starts turn-by-turn immediately.
+    // Android navigation deep link - starts turn-by-turn immediately.
     final androidNav = Uri.parse('google.navigation:q=$lat,$lng&mode=d');
-    // iOS + web universal — opens the Maps app if installed.
+    // iOS + web universal - opens the Maps app if installed.
     final iosApp = Uri.parse(
         'comgooglemaps://?daddr=$lat,$lng&directionsmode=driving');
-    // HTTPS fallback — intent filter on Android forwards this to the
+    // HTTPS fallback - intent filter on Android forwards this to the
     // Maps app; on other platforms it opens in the browser.
     final httpsFallback = Uri.parse(
         'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=driving');
@@ -615,7 +615,7 @@ class _NearbyDoctorsScreenState extends State<NearbyDoctorsScreen> {
                         const Spacer(),
                         Text(
                           _hospitals.isEmpty
-                              ? '—'
+                              ? '-'
                               : '${_hospitals.length} places',
                           style: TextStyle(
                             fontSize: 11,

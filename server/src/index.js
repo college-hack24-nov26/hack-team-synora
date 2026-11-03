@@ -39,7 +39,7 @@ console.log(`JWT_SECRET set: ${!!process.env.JWT_SECRET}`);
 const corsOrigins = (process.env.CORS_ORIGINS || '')
   .split(',').map((s) => s.trim()).filter(Boolean);
 if (corsOrigins.length === 0) {
-  console.warn('WARNING: CORS_ORIGINS not set — allowing all origins. Set it in production.');
+  console.warn('WARNING: CORS_ORIGINS not set - allowing all origins. Set it in production.');
   app.use(cors());
 } else {
   app.use(cors({

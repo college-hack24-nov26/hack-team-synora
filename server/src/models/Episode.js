@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 /**
- * Episode — the working blackboard for one clinical encounter. Embeds the
+ * Episode - the working blackboard for one clinical encounter. Embeds the
  * observations gathered (each a verbatim DiseaseRiskResult), a denormalized
  * currentAssessment snapshot, lifecycle state, and follow-up linkage so the
  * agent can re-open and continue an episode without re-asking everything.

@@ -1,5 +1,5 @@
 /**
- * Tool registration — the complete modality surface for MedicoScope Aegis.
+ * Tool registration - the complete modality surface for MedicoScope Aegis.
  *
  * Every envisioned modality is present as a registered tool. Tools backed by
  * real signal/ML or a real external API run for real; tools with no trained
@@ -129,7 +129,7 @@ function registerAll(kb = { thresholds: [] }) {
     {
       id: 'ppg.vitals_bp', modality: 'ppg', kind: 'evidence',
       fidelity: 'partial', execution: 'device->server',
-      honesty: 'Real HR/HRV/peak DSP; BP number is a heuristic fit — screening only.',
+      honesty: 'Real HR/HRV/peak DSP; BP number is a heuristic fit - screening only.',
       inputSchema: { hr: 'number', systolic: 'number', diastolic: 'number' },
       requiresAny: ['systolic', 'diastolic', 'hr'],
     },
@@ -218,7 +218,7 @@ function registerAll(kb = { thresholds: [] }) {
         score: r.markerScore ?? 0,
         confidence: r.confidence ?? 0,
         contributesTo: ['mental_health'],
-        provenance: { method: 'on-device voice acoustic DSP' },
+        provenance: { method: 'autocorrelation F0 + jitter/shimmer/HNR + spectral tilt', source: 'MedicoScope on-device DSP' },
         raw: r,
       };
     }
@@ -229,8 +229,8 @@ function registerAll(kb = { thresholds: [] }) {
     {
       id: 'respiratory.acoustic_screen', modality: 'respiratory_audio', kind: 'evidence',
       fidelity: 'real', execution: 'network',
-      provenance: { method: 'on-device respiratory acoustics (breathing rate, cough energy, spectral features)' },
-      honesty: 'Real audio features (reuses heart-sound MFCC pipeline). Screening signal for respiratory distress, NOT a diagnosis of asthma/COPD/pneumonia.',
+      provenance: { method: 'on-device respiratory acoustics: envelope-FFT breathing rate + STFT wheeze/crackle features' },
+      honesty: 'Real signal-derived features: breathing rate from the amplitude-envelope FFT, wheeze from sustained tonal peaks (100-1000 Hz), crackles from impulsive bursts. Screening signal for respiratory distress, NOT a diagnosis of asthma/COPD/pneumonia; personally calibrated when available.',
       inputSchema: { result: 'object|optional' },
       requires: ['result'],
     },
@@ -243,7 +243,7 @@ function registerAll(kb = { thresholds: [] }) {
         score: r.distressScore ?? 0,
         confidence: r.confidence ?? 0,
         contributesTo: ['respiratory'],
-        provenance: { method: 'on-device respiratory acoustic DSP' },
+        provenance: { method: 'envelope-FFT breathing rate + STFT wheeze/crackle', source: 'MedicoScope on-device DSP' },
         raw: r,
       };
     }

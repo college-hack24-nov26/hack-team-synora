@@ -1,5 +1,5 @@
 /**
- * KB loader — reads the active knowledge-base version into memory (cached).
+ * KB loader - reads the active knowledge-base version into memory (cached).
  * The gate/classifier consume `redFlagRules` from here so thresholds live in
  * data, not code, and every decision can be stamped with the kbVersion.
  */

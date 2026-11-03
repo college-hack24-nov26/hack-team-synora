@@ -1,5 +1,5 @@
 /**
- * Uniform tool envelopes + the FIDELITY GATE — the honesty spine.
+ * Uniform tool envelopes + the FIDELITY GATE - the honesty spine.
  *
  * Every diagnostic/sensing tool returns an EvidenceResult; every side-effecting
  * tool returns an ActionResult. The fidelity gate is applied to EVERY tool
@@ -67,7 +67,7 @@ function gateEvidence(result, manifest) {
   if (out.confidence != null && out.confidence > cap) out.confidence = cap;
 
   if (fidelity === 'fabricated_scale' && !out.disclaimer) {
-    out.disclaimer = 'Estimated by a hand-tuned formula, not a validated model — screening signal only.';
+    out.disclaimer = 'Estimated by a hand-tuned formula, not a validated model - screening signal only.';
   }
   return out;
 }
@@ -89,7 +89,7 @@ function gateAction(result, manifest) {
   };
 }
 
-/** Risk fusion weights — roadmap contributes nothing; real outweighs heuristic. */
+/** Risk fusion weights - roadmap contributes nothing; real outweighs heuristic. */
 const FUSION_WEIGHT = { real: 1.0, partial: 0.6, heuristic: 0.55, fabricated_scale: 0.35, roadmap: 0 };
 
 module.exports = { FIDELITY, CONF_CAP, FUSION_WEIGHT, gateEvidence, gateAction, FidelityError };

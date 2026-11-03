@@ -85,7 +85,7 @@ class _LabReportScreenState extends State<LabReportScreen> {
           headline: analyzed.headline,
           findings: analyzed.findings
               .map((f) =>
-                  '${f.name} ${f.value} ${f.unit} (${f.flag}) — ${f.interpretation}')
+                  '${f.name} ${f.value} ${f.unit} (${f.flag}) - ${f.interpretation}')
               .toList(),
           language: lang,
         );
@@ -162,7 +162,7 @@ class _LabReportScreenState extends State<LabReportScreen> {
           Text(
             'Upload a PDF from any diagnostic lab. MedicoScope parses it fully '
             'on-device and compares markers against ICMR / ADA / AHA / WHO '
-            'thresholds — no data leaves your phone during parsing.',
+            'thresholds - no data leaves your phone during parsing.',
             style: TextStyle(
               fontSize: 12,
               height: 1.5,

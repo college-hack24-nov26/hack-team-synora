@@ -17,7 +17,7 @@ class ChatService {
     return '$head\n…\n$tail';
   }
 
-  /// Non-streaming call — uses the smaller streaming-capable model via
+  /// Non-streaming call - uses the smaller streaming-capable model via
   /// `/chat` but awaits the full JSON response. Used as a fallback when
   /// the streaming endpoint fails.
   static Future<String> sendMessage({
@@ -68,7 +68,7 @@ class ChatService {
     throw Exception('Chatbot error (${response.statusCode})');
   }
 
-  /// Streaming method — yields token chunks as they arrive via SSE.
+  /// Streaming method - yields token chunks as they arrive via SSE.
   /// Uses the smaller 8B model on the backend (separate quota from the 70B
   /// used by the non-streaming endpoint), so it survives 70B rate limits.
   static Stream<String> sendMessageStream({
@@ -126,7 +126,7 @@ class ChatService {
 
       String buffer = '';
       bool gotAny = false;
-      // Per-chunk read timeout — if the stream stalls > 60 s, abort.
+      // Per-chunk read timeout - if the stream stalls > 60 s, abort.
       await for (final chunk in response.stream
           .transform(utf8.decoder)
           .timeout(const Duration(seconds: 60))) {
@@ -183,7 +183,7 @@ class ChatService {
         'assistantMessage': assistantMessage,
       });
     } catch (_) {
-      // Silently fail — don't block chat UX
+      // Silently fail - don't block chat UX
     }
   }
 

@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 /**
- * DiseaseRiskResult — durable record of a chronic-disease screening outcome
+ * DiseaseRiskResult - durable record of a chronic-disease screening outcome
  * (diabetes / hypertension / anemia via lab / questionnaire / vitals / retina /
  * pallor / ppg). Previously these lived ONLY in on-device SharedPreferences
  * (lib/services/disease_risk_store.dart), so a patient's entire screening

@@ -34,6 +34,16 @@ class AppTheme {
     ],
   );
 
+  // Medical-assistant chat accent (teal). Promoted from hardcoded literals that
+  // were scattered across the chat UI so the whole chat reads as one system.
+  static const Color chatTeal = Color(0xFF4ECDC4);
+  static const Color chatTealDark = Color(0xFF44A08D);
+  static const LinearGradient chatGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [chatTeal, chatTealDark],
+  );
+
   // Theme Data
   static ThemeData get lightTheme {
     return ThemeData(

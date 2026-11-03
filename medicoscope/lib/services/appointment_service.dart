@@ -4,7 +4,6 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:medicoscope/core/constants/api_constants.dart';
-import 'package:medicoscope/core/constants/disease_constants.dart';
 
 /// A booked appointment request. Stored locally so the patient sees their
 /// upcoming appointments even if the backend hasn't acknowledged yet.
@@ -58,7 +57,7 @@ class Appointment {
       );
 }
 
-/// AppointmentService — books an appointment with the patient's linked doctor.
+/// AppointmentService - books an appointment with the patient's linked doctor.
 ///
 /// Backend strategy: we reuse the existing `/mental-health/notifications`
 /// endpoint (already wired for disease alerts) with `source: 'appointment_request'`
@@ -69,7 +68,9 @@ class AppointmentService {
   static const _key = 'appointments_local';
   static const _maxStored = 50;
 
-  /// Book an appointment. Writes locally + fires a doctor notification.
+  /// Book an appointment. Persists to MongoDB (durable, doctor-visible) AND
+  /// keeps a local copy so the patient sees it offline / before the backend
+  /// acknowledges. Pass [authToken] so the request is authenticated.
   static Future<Appointment> book({
     required String doctorId,
     required String patientId,
@@ -77,8 +78,9 @@ class AppointmentService {
     required DateTime preferredSlot,
     String modality = 'general',
     String reason = '',
+    String? authToken,
   }) async {
-    final appt = Appointment(
+    var appt = Appointment(
       id: '${DateTime.now().millisecondsSinceEpoch}',
       doctorId: doctorId,
       patientId: patientId,
@@ -89,32 +91,39 @@ class AppointmentService {
       reason: reason,
     );
 
-    await _persistLocally(appt);
-
-    // Notify the doctor via the shared notification bus.
+    // Canonical record in MongoDB. If it succeeds we adopt the server id so the
+    // local copy and backend stay in sync; on failure we keep the local copy
+    // and the request can be retried/refetched later (offline-friendly).
     try {
-      final report = _buildClinicalReport(appt);
-      await http
+      final response = await http
           .post(
-            Uri.parse('${ApiConstants.baseUrl}/mental-health/notifications'),
-            headers: {'Content-Type': 'application/json'},
+            Uri.parse('${ApiConstants.baseUrl}/appointments'),
+            headers: {
+              'Content-Type': 'application/json',
+              if (authToken != null) 'Authorization': 'Bearer $authToken',
+            },
             body: jsonEncode({
               'doctorId': doctorId,
               'patientId': patientId,
               'patientName': patientName,
-              'clinicalReport': report,
-              'urgency': 'moderate',
-              'transcript':
-                  '[Appointment] ${modality.isEmpty ? "General" : modality} '
-                  'consultation requested for ${_fmtDate(preferredSlot)}',
-              'source': 'appointment_request',
+              'preferredSlot': preferredSlot.toIso8601String(),
+              'modality': modality,
+              'reason': reason,
             }),
           )
           .timeout(const Duration(seconds: 12));
+      if (response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        if (data['appointment'] is Map) {
+          appt = Appointment.fromJson(
+              Map<String, dynamic>.from(data['appointment'] as Map));
+        }
+      }
     } catch (_) {
-      // Offline-friendly — local copy is already saved.
+      // Offline-friendly - local copy below is the fallback.
     }
 
+    await _persistLocally(appt);
     return appt;
   }
 
@@ -126,7 +135,31 @@ class AppointmentService {
     await prefs.setStringList(_key, list);
   }
 
-  static Future<List<Appointment>> getAll() async {
+  /// Fetch appointments. Prefers MongoDB (the source of truth, synced across
+  /// devices); falls back to the local cache when offline or unauthenticated.
+  static Future<List<Appointment>> getAll({String? authToken}) async {
+    if (authToken != null) {
+      try {
+        final response = await http.get(
+          Uri.parse('${ApiConstants.baseUrl}/appointments/mine'),
+          headers: {'Authorization': 'Bearer $authToken'},
+        ).timeout(const Duration(seconds: 12));
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          final appts = (data['appointments'] as List? ?? const [])
+              .map((e) =>
+                  Appointment.fromJson(Map<String, dynamic>.from(e as Map)))
+              .toList();
+          // Refresh the local cache so offline reads stay current.
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setStringList(
+              _key, appts.map((a) => jsonEncode(a.toJson())).toList());
+          return appts;
+        }
+      } catch (_) {
+        // fall through to local cache
+      }
+    }
     final prefs = await SharedPreferences.getInstance();
     final list = prefs.getStringList(_key) ?? const [];
     return list
@@ -140,24 +173,6 @@ class AppointmentService {
         })
         .whereType<Appointment>()
         .toList();
-  }
-
-  static String _buildClinicalReport(Appointment a) {
-    final slot = _fmtDate(a.preferredSlot);
-    return 'APPOINTMENT REQUEST\n'
-        'Patient: ${a.patientName}\n'
-        'Modality: ${a.modality}\n'
-        'Preferred slot: $slot\n'
-        'Reason: ${a.reason.isEmpty ? "Follow-up from MedicoScope screening" : a.reason}\n\n'
-        'Please confirm or propose an alternative time via the MedicoScope doctor dashboard.';
-  }
-
-  static String _fmtDate(DateTime d) {
-    final dd = d.day.toString().padLeft(2, '0');
-    final mm = d.month.toString().padLeft(2, '0');
-    final hh = d.hour.toString().padLeft(2, '0');
-    final mi = d.minute.toString().padLeft(2, '0');
-    return '$dd/$mm/${d.year} at $hh:$mi';
   }
 
   /// Convenience: natural-language request from the chatbot.

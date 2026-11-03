@@ -1,5 +1,5 @@
 /**
- * Aegis Gate — the single chokepoint every side-effecting clinical action
+ * Aegis Gate - the single chokepoint every side-effecting clinical action
  * passes through. The agent PROPOSES; the gate DISPOSES.
  *
  *   evaluate(proposal, kb)  -> pure decision { actionClass, triggeredFlags, reasons, disposition }
@@ -40,7 +40,7 @@ function evaluate(proposal, kb = {}) {
     riskLevel: proposal.riskLevel,
     triggeredFlags: triggered,
     // Confidence semantics (finding 0.3): an OMITTED confidence is treated as
-    // "deterministic rule-engine certainty" (1) — the documented contract, so
+    // "deterministic rule-engine certainty" (1) - the documented contract, so
     // a high-risk call with no confidence stays AMBER (doctor notified), not
     // RED. The exploit the audit worried about (dodging escalation) is not
     // reachable: omitting confidence can only RAISE trust to the same default,
@@ -55,7 +55,7 @@ function evaluate(proposal, kb = {}) {
     : 'EXECUTE';
   // Clinician override: the legitimate unblock path. A named clinician has
   // explicitly approved this RED action via the case queue, so it may execute
-  // — but it is still classified, red-flag-detected, ledgered and idempotent
+  // - but it is still classified, red-flag-detected, ledgered and idempotent
   // below. We NEVER skip evaluation; we only change the disposition.
   if (actionClass === 'RED' && proposal.clinicianApproved) {
     disposition = 'EXECUTE_AND_NOTIFY';
@@ -109,7 +109,7 @@ async function process(proposal, kb, deps) {
     return { ...verdict, executed: false, case: kase };
   }
 
-  // EXECUTE / EXECUTE_AND_NOTIFY — idempotent.
+  // EXECUTE / EXECUTE_AND_NOTIFY - idempotent.
   const key = idempotencyKey({
     patientId: proposal.patientId, actionType: proposal.actionType,
     inputs: proposal.inputs, rulesVersion: kb.rulesVersion, now,

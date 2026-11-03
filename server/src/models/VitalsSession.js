@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 /**
- * VitalsSession — durable record that a live vitals-monitoring session ran.
+ * VitalsSession - durable record that a live vitals-monitoring session ran.
  * The transient simulator state (scenario/drift/tick counter) stays in the
  * chatbot process by design; this is the audit-able session envelope so a
  * doctor can see that monitoring happened and when, surviving restarts.

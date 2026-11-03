@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
@@ -7,15 +8,18 @@ import 'package:provider/provider.dart';
 
 import 'package:medicoscope/core/constants/disease_constants.dart';
 import 'package:medicoscope/core/locale/locale_provider.dart';
+import 'package:medicoscope/core/providers/auth_provider.dart';
 import 'package:medicoscope/core/theme/app_theme.dart';
 import 'package:medicoscope/core/theme/theme_provider.dart';
 import 'package:medicoscope/core/widgets/glass_card.dart';
 import 'package:medicoscope/models/disease_risk_result.dart';
 import 'package:medicoscope/screens/diseases/methods/_method_scaffold.dart';
 import 'package:medicoscope/screens/diseases/widgets/risk_result_view.dart';
+import 'package:medicoscope/services/bp_calibration_store.dart';
 import 'package:medicoscope/services/chat_service.dart';
 import 'package:medicoscope/services/disease_result_pipeline.dart';
 import 'package:medicoscope/services/ppg_bp_analyzer.dart';
+import 'package:medicoscope/services/ppg_signal.dart';
 
 enum _PpgStage { idle, initializing, capturing, analyzing, done, error }
 
@@ -29,14 +33,32 @@ class PpgBloodPressureScreen extends StatefulWidget {
 }
 
 class _PpgBloodPressureScreenState extends State<PpgBloodPressureScreen> {
+  static const int _captureSeconds = 18;
+
   CameraController? _controller;
   _PpgStage _stage = _PpgStage.idle;
   String? _error;
-  int _remaining = 15;
+  int _remaining = _captureSeconds;
   Timer? _countdown;
   final List<double> _samples = [];
+  final List<double> _timestamps = []; // ms since capture start, per sample
   DateTime? _captureStart;
   DiseaseRiskResult? _result;
+
+  BpCalibration? _calibration;
+  bool _calibrating = false; // this capture is a calibration, not a reading
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCalibration();
+  }
+
+  Future<void> _loadCalibration() async {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final c = await BpCalibrationStore.load(auth.user?.id ?? '');
+    if (mounted) setState(() => _calibration = c);
+  }
 
   @override
   void dispose() {
@@ -45,11 +67,13 @@ class _PpgBloodPressureScreenState extends State<PpgBloodPressureScreen> {
     super.dispose();
   }
 
-  Future<void> _startCapture() async {
+  Future<void> _startCapture({bool forCalibration = false}) async {
     setState(() {
+      _calibrating = forCalibration;
       _stage = _PpgStage.initializing;
       _error = null;
       _samples.clear();
+      _timestamps.clear();
     });
     try {
       final cameras = await availableCameras();
@@ -57,7 +81,7 @@ class _PpgBloodPressureScreenState extends State<PpgBloodPressureScreen> {
         (c) => c.lensDirection == CameraLensDirection.back,
         orElse: () => cameras.first,
       );
-      // Use medium resolution — low can be as tiny as 176×144 on some devices
+      // Use medium resolution - low can be as tiny as 176×144 on some devices
       // (barely enough frame data for a stable mean). Medium is the sweet spot.
       final controller = CameraController(
         back,
@@ -82,19 +106,19 @@ class _PpgBloodPressureScreenState extends State<PpgBloodPressureScreen> {
 
       setState(() {
         _stage = _PpgStage.capturing;
-        _remaining = 15;
+        _remaining = _captureSeconds;
       });
       _captureStart = DateTime.now();
 
       _countdown = Timer.periodic(const Duration(seconds: 1), (_) {
         if (!mounted) return;
-        setState(() => _remaining = (_remaining - 1).clamp(0, 15));
+        setState(() => _remaining = (_remaining - 1).clamp(0, _captureSeconds));
         if (_remaining <= 0) _finishCapture();
       });
 
       await controller.startImageStream((CameraImage image) {
         try {
-          // Only sample the CENTER 40% × 40% of the frame — this is the part
+          // Only sample the CENTER 40% × 40% of the frame - this is the part
           // directly over the sensor where the fingertip is pressed. Corners
           // often catch stray light or shadow that flattens the signal.
           //
@@ -146,6 +170,15 @@ class _PpgBloodPressureScreenState extends State<PpgBloodPressureScreen> {
 
           if (count > 0) {
             _samples.add(rSum / count);
+            // Real per-frame timestamp so the analyzer can resample onto a
+            // uniform grid (frame delivery is not evenly spaced).
+            final t = _captureStart == null
+                ? 0.0
+                : DateTime.now()
+                    .difference(_captureStart!)
+                    .inMilliseconds
+                    .toDouble();
+            _timestamps.add(t);
           }
         } catch (_) {
           // Never crash the stream; just drop the frame.
@@ -176,11 +209,35 @@ class _PpgBloodPressureScreenState extends State<PpgBloodPressureScreen> {
     setState(() => _stage = _PpgStage.analyzing);
 
     final duration = _captureStart == null
-        ? 15.0
+        ? _captureSeconds.toDouble()
         : DateTime.now().difference(_captureStart!).inMilliseconds / 1000.0;
     final fps = _samples.length / duration.clamp(1.0, 999.0);
+    final ts = List<double>.from(_timestamps);
 
-    final base = PpgBpAnalyzer.analyze(samples: _samples, fps: fps);
+    // Calibration capture: extract features, then ask for the real cuff reading.
+    if (_calibrating) {
+      final feats = PpgSignal.extract(raw: _samples, timestampsMs: ts, nominalFps: fps);
+      await _controller?.dispose();
+      _controller = null;
+      if (!mounted) return;
+      if (!feats.usable) {
+        setState(() {
+          _stage = _PpgStage.error;
+          _error = 'Calibration needs a clean pulse. ${feats.reason}';
+          _calibrating = false;
+        });
+        return;
+      }
+      await _promptCuffAndSave(feats);
+      return;
+    }
+
+    final base = PpgBpAnalyzer.analyze(
+      samples: _samples,
+      timestampsMs: ts,
+      fps: fps,
+      calibration: _calibration,
+    );
 
     if (!mounted) return;
     setState(() => _result = base);
@@ -194,7 +251,7 @@ class _PpgBloodPressureScreenState extends State<PpgBloodPressureScreen> {
       headline: base.headline,
       findings: base.findings
           .map((f) =>
-              '${f.name} ${f.value} ${f.unit} (${f.flag}) — ${f.interpretation}')
+              '${f.name} ${f.value} ${f.unit} (${f.flag}) - ${f.interpretation}')
           .toList(),
       language: lang,
     );
@@ -226,6 +283,92 @@ class _PpgBloodPressureScreenState extends State<PpgBloodPressureScreen> {
     _controller = null;
   }
 
+  Future<void> _promptCuffAndSave(PpgFeatures feats) async {
+    final sbpCtrl = TextEditingController();
+    final dbpCtrl = TextEditingController();
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Calibrate with your cuff'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Good pulse captured. Now enter the reading from a real BP cuff '
+              'taken right now, so future scans are anchored to your own BP.',
+              style: TextStyle(fontSize: 12.5, height: 1.4),
+            ),
+            const SizedBox(height: 14),
+            Row(children: [
+              Expanded(
+                child: TextField(
+                  controller: sbpCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                      labelText: 'Systolic', hintText: 'e.g. 120'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextField(
+                  controller: dbpCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                      labelText: 'Diastolic', hintText: 'e.g. 80'),
+                ),
+              ),
+            ]),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Save calibration')),
+        ],
+      ),
+    );
+
+    if (!mounted) return;
+    final sbp = double.tryParse(sbpCtrl.text.trim());
+    final dbp = double.tryParse(dbpCtrl.text.trim());
+    if (saved == true &&
+        sbp != null &&
+        dbp != null &&
+        sbp >= 70 &&
+        sbp <= 260 &&
+        dbp >= 40 &&
+        dbp <= 160) {
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      final calib = BpCalibration(
+        refSbp: sbp,
+        refDbp: dbp,
+        refFeatures: feats.toVector(),
+        timestamp: DateTime.now(),
+      );
+      await BpCalibrationStore.save(auth.user?.id ?? '', calib);
+      if (!mounted) return;
+      setState(() {
+        _calibration = calib;
+        _calibrating = false;
+        _stage = _PpgStage.idle;
+        _samples.clear();
+        _timestamps.clear();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Calibrated. Future scans are now personalized.')));
+    } else {
+      setState(() {
+        _calibrating = false;
+        _stage = _PpgStage.idle;
+        _samples.clear();
+        _timestamps.clear();
+      });
+    }
+  }
+
   Future<void> _cancel() async {
     _countdown?.cancel();
     if (_controller != null && _controller!.value.isStreamingImages) {
@@ -241,7 +384,9 @@ class _PpgBloodPressureScreenState extends State<PpgBloodPressureScreen> {
     if (!mounted) return;
     setState(() {
       _stage = _PpgStage.idle;
+      _calibrating = false;
       _samples.clear();
+      _timestamps.clear();
     });
   }
 
@@ -249,7 +394,27 @@ class _PpgBloodPressureScreenState extends State<PpgBloodPressureScreen> {
         _stage = _PpgStage.idle;
         _result = null;
         _samples.clear();
+        _timestamps.clear();
       });
+
+  /// Rough live pulse-strength (0..1) from the most recent samples, so the user
+  /// gets immediate placement feedback while capturing.
+  double _liveSignal() {
+    final n = _samples.length;
+    if (n < 20) return 0;
+    final seg = _samples.sublist(math.max(0, n - 60));
+    double m = 0;
+    for (final v in seg) {
+      m += v;
+    }
+    m /= seg.length;
+    double s = 0;
+    for (final v in seg) {
+      s += (v - m) * (v - m);
+    }
+    s = math.sqrt(s / seg.length);
+    return (s / 3.0).clamp(0.0, 1.0);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -301,10 +466,11 @@ class _PpgBloodPressureScreenState extends State<PpgBloodPressureScreen> {
               const SizedBox(height: 8),
               Text(
                 'Cover the rear camera and flash with your fingertip. Press '
-                'gently — enough to see a steady pink glow. Hold still for 15 '
-                'seconds. MedicoScope analyses the red-channel pulse '
-                'waveform (PPG) and estimates BP using a MIMIC-III-derived '
-                'regression (Wu 2009 / Teng 2003).',
+                'gently, enough to see a steady pink glow, and hold still for '
+                'the full scan. MedicoScope band-passes and FFT-analyses the '
+                'red-channel pulse waveform (PPG), then estimates BP from real '
+                'pulse-morphology features. It is screening-grade: calibrate '
+                'once with a real cuff for a much closer, personalized estimate.',
                 style: TextStyle(
                   fontSize: 12,
                   height: 1.5,
@@ -347,20 +513,64 @@ class _PpgBloodPressureScreenState extends State<PpgBloodPressureScreen> {
 
   Widget _captureCard(bool isDark, Color accent) {
     if (_stage == _PpgStage.idle || _stage == _PpgStage.error) {
-      return ElevatedButton.icon(
-        onPressed: _startCapture,
-        icon: const Icon(Icons.play_circle_fill_rounded),
-        label: const Text('Start 15-second BP scan'),
-        style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 18),
-          backgroundColor: accent,
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+      final calibrated = _calibration != null;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ElevatedButton.icon(
+            onPressed: () => _startCapture(),
+            icon: const Icon(Icons.play_circle_fill_rounded),
+            label: Text('Start $_captureSeconds-second BP scan'),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 18),
+              backgroundColor: accent,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              textStyle:
+                  const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+            ),
           ),
-          textStyle: const TextStyle(
-              fontWeight: FontWeight.w700, fontSize: 15),
-        ),
+          const SizedBox(height: 10),
+          // Calibration status + action - the accuracy lever.
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: (calibrated ? const Color(0xFF2ECC71) : accent)
+                  .withOpacity(0.10),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                  color: (calibrated ? const Color(0xFF2ECC71) : accent)
+                      .withOpacity(0.35)),
+            ),
+            child: Row(
+              children: [
+                Icon(calibrated ? Icons.verified : Icons.tune,
+                    size: 18,
+                    color: calibrated ? const Color(0xFF2ECC71) : accent),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    calibrated
+                        ? 'Personalized: calibrated ${_calibration!.age.inDays} day(s) ago${_calibration!.isStale ? ' • re-calibrate for best accuracy' : ''}'
+                        : 'Not calibrated - estimates use a population model. Calibrate once for accuracy.',
+                    style: TextStyle(
+                        fontSize: 11.5,
+                        height: 1.3,
+                        color: isDark
+                            ? AppTheme.darkTextLight
+                            : AppTheme.textDark),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => _startCapture(forCalibration: true),
+                  child: Text(calibrated ? 'Redo' : 'Calibrate'),
+                ),
+              ],
+            ),
+          ),
+        ],
       );
     }
 
@@ -439,12 +649,48 @@ class _PpgBloodPressureScreenState extends State<PpgBloodPressureScreen> {
             ),
             const SizedBox(height: 6),
             Text(
-              'Samples collected: ${_samples.length}',
+              _calibrating
+                  ? 'Calibration scan • keep perfectly still'
+                  : 'Reading pulse • keep perfectly still',
               style: TextStyle(
                 fontSize: 11,
                 color: isDark ? AppTheme.darkTextGray : AppTheme.textGray,
               ),
             ),
+            const SizedBox(height: 12),
+            // Live signal-strength meter so the user knows the finger is placed
+            // well BEFORE the scan ends (drives a much higher success rate).
+            Builder(builder: (_) {
+              final q = _liveSignal();
+              final ok = q > 0.5;
+              return Column(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: LinearProgressIndicator(
+                      value: q,
+                      minHeight: 8,
+                      backgroundColor:
+                          (isDark ? Colors.white : Colors.black).withOpacity(.08),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                          ok ? const Color(0xFF2ECC71) : const Color(0xFFF0B45C)),
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    q < 0.2
+                        ? 'Searching for a pulse - press firmly over lens + flash'
+                        : ok
+                            ? 'Good signal - hold steady'
+                            : 'Weak signal - adjust finger pressure',
+                    style: TextStyle(
+                        fontSize: 10.5,
+                        color:
+                            isDark ? AppTheme.darkTextGray : AppTheme.textGray),
+                  ),
+                ],
+              );
+            }),
             const SizedBox(height: AppTheme.spacingMedium),
             OutlinedButton.icon(
               onPressed: _cancel,
@@ -474,7 +720,9 @@ class _PpgBloodPressureScreenState extends State<PpgBloodPressureScreen> {
             ),
             const SizedBox(height: 12),
             Text(
-              'Running PPG-BP regression…',
+              _calibrating
+                  ? 'Reading pulse for calibration…'
+                  : 'Analysing pulse waveform…',
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,

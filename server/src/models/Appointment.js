@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 /**
- * Appointment — canonical record of a patient's appointment request. Previously
+ * Appointment - canonical record of a patient's appointment request. Previously
  * appointments existed only in on-device SharedPreferences plus a fire-and-
  * forget notification, so a request was lost if the notify POST failed or the
  * device changed, and the doctor had no structured record. Now durable in Mongo.

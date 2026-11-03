@@ -1,9 +1,9 @@
 class ApiConstants {
-  static const String baseUrl = 'https://medicoscope-server.onrender.com/api';
+  static const String baseUrl = 'https://medicoscope-api-lbto.onrender.com/api';
 
-  // Chatbot
+  // Chatbot - the redeployed service that has the Aegis consult route.
   static const String chatbotBaseUrl =
-      'https://medicoscope-chatbot-mu7p.onrender.com';
+      'https://medicoscope-chatbot-lbto.onrender.com';
 
   // Auth
   static const String register = '/auth/register';

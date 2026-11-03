@@ -38,9 +38,12 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
-            // R8 strips TFLite GPU delegate classes (GpuDelegateFactory$Options)
-            // and fails the build. Disable shrinking for now; a production build
-            // should instead add keep rules for org.tensorflow.lite.gpu.**.
+            // Shrinking is OFF by choice: R8 stripped the TFLite GPU delegate
+            // classes and, for the demo, we prefer the unminified build (zero
+            // risk of R8 removing reflection-used code; same runtime speed).
+            // To re-enable later, set both true and keep proguard-rules.pro:
+            //   isMinifyEnabled = true; isShrinkResources = true
+            //   proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             isMinifyEnabled = false
             isShrinkResources = false
         }

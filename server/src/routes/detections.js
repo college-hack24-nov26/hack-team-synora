@@ -9,7 +9,7 @@ const aegisService = require('../../aegis/service');
 const router = express.Router();
 
 // Map an image-classifier output to an Aegis risk level. We DON'T trust the
-// label alone — a "normal" class is low, known serious classes are high, and a
+// label alone - a "normal" class is low, known serious classes are high, and a
 // low classifier confidence on a serious-looking class keeps it elevated so the
 // gate can require oversight. Conservative by design (fail toward review).
 const SERIOUS_CLASS_RE = /melanoma|carcinoma|malignan|tumou?r|glioma|pneumonia|nodule|cardiomeg|effusion|mass|lesion|stenosis|regurgitation/i;
@@ -27,7 +27,7 @@ function detectionRiskLevel(className, confidence) {
 
 // ── Disease risk results (chronic-disease screening) ─────────────────────────
 
-// POST /api/detections/risk-result — persist a screening outcome to MongoDB.
+// POST /api/detections/risk-result - persist a screening outcome to MongoDB.
 // Patients file for themselves; doctors/admins may file on a patient's behalf.
 router.post('/risk-result', auth, async (req, res) => {
   try {
@@ -60,7 +60,7 @@ router.post('/risk-result', auth, async (req, res) => {
   }
 });
 
-// GET /api/detections/risk-results/:patientId — screening history (most recent
+// GET /api/detections/risk-results/:patientId - screening history (most recent
 // first). Guarded so only the patient, their linked doctor, or an admin reads.
 router.get('/risk-results/:patientId', auth, patientAccess(), async (req, res) => {
   try {
@@ -106,7 +106,7 @@ router.post('/', auth, [
     // get the same treatment as the chronic-disease deck: classification,
     // red-flag detection on the class label, audit-ledger entry, and (for a
     // serious finding) doctor notification or a human-gated RED case. The
-    // detection itself is already saved above — gating never blocks the record.
+    // detection itself is already saved above - gating never blocks the record.
     let aegis = null;
     if (resolvedPatientId) {
       try {

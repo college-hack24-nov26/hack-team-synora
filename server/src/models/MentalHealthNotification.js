@@ -12,6 +12,9 @@ const mentalHealthNotificationSchema = new mongoose.Schema({
   longitude: { type: Number, default: null },
   locationLabel: { type: String, default: '' },
   mapsUrl: { type: String, default: '' },
+  // On-device voice acoustic-biomarker (screening) carried on the alert.
+  voiceMarkerScore: { type: Number, default: null },
+  voiceMarkerHeadline: { type: String, default: '' },
   read: { type: Boolean, default: false },
   // What raised this notification: 'mindspace' | 'disease_alert' | 'appointment_request'.
   // Lets the doctor UI categorise and the disease-alert client de-dupe by source.

@@ -621,7 +621,7 @@ class VitalsProvider extends ChangeNotifier {
           },
         );
       } catch (_) {
-        // Best effort — don't block UI on save failure
+        // Best effort - don't block UI on save failure
       }
     }
 

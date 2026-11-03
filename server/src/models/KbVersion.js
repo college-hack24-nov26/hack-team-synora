@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
  * KB version registry. Exactly one version is `active` at a time; the Aegis
  * gate and reasoner stamp every decision with the active kbVersion so past
  * audits remain reproducible even after the KB is updated. Updating the KB
- * means seeding a new version and flipping `active` — never mutating rows in
+ * means seeding a new version and flipping `active` - never mutating rows in
  * place.
  */
 const kbVersionSchema = new mongoose.Schema({

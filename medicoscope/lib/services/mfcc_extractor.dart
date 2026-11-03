@@ -8,7 +8,7 @@ import 'package:fftea/fftea.dart';
 /// Produces a fixed [nMfcc] × [nFrames] grid (flattened row-major to a 1-D
 /// Float32List of length `nMfcc * nFrames`).
 ///
-/// Pipeline — matches librosa.feature.mfcc default behaviour closely enough
+/// Pipeline - matches librosa.feature.mfcc default behaviour closely enough
 /// for a screening-grade PCG classifier:
 ///   1. Pre-emphasis filter (0.97 coefficient).
 ///   2. Frame the signal using a Hann window.
@@ -72,7 +72,7 @@ class MfccExtractor {
       for (int i = 0; i < pre.length; i++) {
         padded[i] = pre[i];
       }
-      // Rest is zero-filled — classifier will see silence, which is fine.
+      // Rest is zero-filled - classifier will see silence, which is fine.
     }
 
     // Frame + FFT + mel + log + DCT.

@@ -6,7 +6,7 @@ import 'package:medicoscope/core/constants/disease_constants.dart';
 import 'package:medicoscope/models/disease_risk_result.dart';
 
 /// Anemia estimator based on the color science of palpebral conjunctival
-/// pallor (McAuley 2016, Dimauro 2020 — Emory / AIIMS validation).
+/// pallor (McAuley 2016, Dimauro 2020 - Emory / AIIMS validation).
 ///
 /// The healthy palpebral conjunctiva is rich in red blood and shows a high
 /// R/G ratio and high saturation in HSV. Anaemic conjunctiva loses this
@@ -87,8 +87,8 @@ class ImagePallorAnalyzer {
     final rbRatio = meanR / (meanB + 1);
 
     // Empirical mapping calibrated to the Emory smartphone-anemia range.
-    // Healthy: rgRatio ≈ 1.5–1.8, sat ≈ 0.45–0.6, hue ≈ 0–20° → Hb 13–15
-    // Anaemic: rgRatio ≈ 1.1–1.3, sat ≈ 0.15–0.25, hue drifts > 20° → Hb 7–10
+    // Healthy: rgRatio ≈ 1.5-1.8, sat ≈ 0.45-0.6, hue ≈ 0-20° → Hb 13-15
+    // Anaemic: rgRatio ≈ 1.1-1.3, sat ≈ 0.15-0.25, hue drifts > 20° → Hb 7-10
     final rednessScore =
         (rgRatio * 4 + rbRatio * 2 + meanSat * 6).clamp(0.0, 20.0);
     final hbEstimate = (rednessScore * 0.85 + 3).clamp(5.0, 16.0);
@@ -97,16 +97,16 @@ class ImagePallorAnalyzer {
     String interpret;
     if (hbEstimate < 8) {
       risk = RiskLevel.critical;
-      interpret = 'Severe pallor — possible severe anaemia';
+      interpret = 'Severe pallor - possible severe anaemia';
     } else if (hbEstimate < 10) {
       risk = RiskLevel.high;
-      interpret = 'Significant pallor — possible moderate anaemia';
+      interpret = 'Significant pallor - possible moderate anaemia';
     } else if (hbEstimate < 12) {
       risk = RiskLevel.moderate;
-      interpret = 'Mild pallor — possible mild anaemia';
+      interpret = 'Mild pallor - possible mild anaemia';
     } else {
       risk = RiskLevel.low;
-      interpret = 'Healthy vascular redness — anaemia unlikely';
+      interpret = 'Healthy vascular redness - anaemia unlikely';
     }
 
     final findings = <MarkerFinding>[
@@ -137,17 +137,17 @@ class ImagePallorAnalyzer {
         referenceRange: '> 40% healthy conjunctiva',
         flag: meanSat < 0.35 ? 'low' : 'normal',
         interpretation: meanSat < 0.35
-            ? 'Muted colour saturation — classic anaemia sign'
+            ? 'Muted colour saturation - classic anaemia sign'
             : 'Normal saturation',
       ),
       MarkerFinding(
         name: 'Dominant Hue',
         value: meanHue.toStringAsFixed(0),
         unit: '°',
-        referenceRange: '0°–25° red',
+        referenceRange: '0°-25° red',
         flag: (meanHue < 0 || meanHue > 30) ? 'low' : 'normal',
         interpretation: (meanHue > 30)
-            ? 'Hue drifting from pure red — pinker than healthy'
+            ? 'Hue drifting from pure red - pinker than healthy'
             : 'Typical conjunctival hue',
       ),
     ];
@@ -169,10 +169,10 @@ class ImagePallorAnalyzer {
       topContributors: contributors.take(3).toList(),
       recommendations: [
         if (risk == RiskLevel.critical || risk == RiskLevel.high)
-          'URGENT: Confirm with a CBC (Complete Blood Count) — do not rely on this screen alone.',
+          'URGENT: Confirm with a CBC (Complete Blood Count) - do not rely on this screen alone.',
         'Include iron-rich foods (leafy greens, pulses, jaggery, red meat).',
         'Vitamin C with meals boosts iron absorption.',
-        'Re-scan after 4–6 weeks of dietary change to track improvement.',
+        'Re-scan after 4-6 weeks of dietary change to track improvement.',
       ],
       dataSource:
           'Emory University smartphone-anemia method + AIIMS validation + WHO cutoffs',

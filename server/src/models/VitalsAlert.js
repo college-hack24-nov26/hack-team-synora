@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 /**
- * VitalsAlert — a durable record of a vitals threshold breach raised during a
+ * VitalsAlert - a durable record of a vitals threshold breach raised during a
  * live monitoring session. Previously these lived only in an in-memory dict in
  * the FastAPI chatbot (vitals_alerts) and were lost on every restart / Render
  * free-tier sleep, so a doctor's alert history vanished. Now persisted here and

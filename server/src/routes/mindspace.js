@@ -5,10 +5,10 @@ const MindSpaceSession = require('../models/MindSpaceSession');
 
 const router = express.Router();
 
-// POST /api/mindspace/session — save a mindspace session
+// POST /api/mindspace/session - save a mindspace session
 router.post('/session', auth, async (req, res) => {
   try {
-    const { transcript, userMessage, doctorReport, urgency, coinsEarned, doctorId } = req.body;
+    const { transcript, userMessage, doctorReport, urgency, coinsEarned, doctorId, voiceMarkerScore } = req.body;
 
     const session = new MindSpaceSession({
       userId: req.user._id,
@@ -18,6 +18,7 @@ router.post('/session', auth, async (req, res) => {
       urgency: urgency || 'low',
       coinsEarned: coinsEarned || 0,
       doctorId: doctorId || null,
+      voiceMarkerScore: typeof voiceMarkerScore === 'number' ? voiceMarkerScore : null,
     });
 
     await session.save();
@@ -28,12 +29,12 @@ router.post('/session', auth, async (req, res) => {
   }
 });
 
-// GET /api/mindspace/history — get mindspace history for patient
+// GET /api/mindspace/history - get mindspace history for patient
 router.get('/history', auth, async (req, res) => {
   try {
     const sessions = await MindSpaceSession.find({ userId: req.user._id })
       .sort({ createdAt: -1 })
-      .select('transcript userMessage urgency coinsEarned createdAt')
+      .select('transcript userMessage urgency coinsEarned voiceMarkerScore createdAt')
       .lean();
 
     res.json({ sessions });
@@ -43,7 +44,7 @@ router.get('/history', auth, async (req, res) => {
   }
 });
 
-// GET /api/mindspace/doctor/:patientId — get mindspace reports for doctor.
+// GET /api/mindspace/doctor/:patientId - get mindspace reports for doctor.
 // Doctor-only; the query is already scoped to doctorId: req.user._id so a
 // doctor only ever sees sessions where THEY are the assigned doctor.
 router.get('/doctor/:patientId', auth, roleCheck('doctor'), async (req, res) => {
@@ -54,7 +55,7 @@ router.get('/doctor/:patientId', auth, roleCheck('doctor'), async (req, res) => 
       doctorReport: { $ne: null },
     })
       .sort({ createdAt: -1 })
-      .select('transcript doctorReport urgency createdAt')
+      .select('transcript doctorReport urgency voiceMarkerScore createdAt')
       .lean();
 
     res.json({ sessions });
@@ -64,7 +65,7 @@ router.get('/doctor/:patientId', auth, roleCheck('doctor'), async (req, res) => 
   }
 });
 
-// DELETE /api/mindspace/session/:id — delete a mindspace session
+// DELETE /api/mindspace/session/:id - delete a mindspace session
 router.delete('/session/:id', auth, async (req, res) => {
   try {
     const session = await MindSpaceSession.findById(req.params.id);

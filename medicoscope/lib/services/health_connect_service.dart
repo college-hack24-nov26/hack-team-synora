@@ -40,7 +40,7 @@ class HealthConnectService {
       await _health.configure();
       _configured = true;
     } catch (_) {
-      // configure() may throw on unsupported platforms — swallow silently
+      // configure() may throw on unsupported platforms - swallow silently
     }
   }
 
@@ -295,7 +295,7 @@ class HealthConnectService {
     }
   }
 
-  /// One-shot wearable snapshot — returns everything in parallel.
+  /// One-shot wearable snapshot - returns everything in parallel.
   static Future<WearableSnapshot> getSnapshot() async {
     final results = await Future.wait([
       getTodaySteps(),

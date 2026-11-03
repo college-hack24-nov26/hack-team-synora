@@ -21,7 +21,7 @@ import 'package:medicoscope/models/disease_risk_result.dart';
 /// baselines. We expose a clear numeric explanation for every decision.
 ///
 /// A real TFLite model can be plugged into [_runTflite] later without
-/// changing any UI — the rest of the pipeline produces a DiseaseRiskResult
+/// changing any UI - the rest of the pipeline produces a DiseaseRiskResult
 /// either way.
 class ImageRetinaAnalyzer {
   static DiseaseRiskResult analyze(Uint8List bytes) {
@@ -117,10 +117,10 @@ class ImageRetinaAnalyzer {
         name: 'Vessel-contrast σ',
         value: greenStd.toStringAsFixed(1),
         unit: '',
-        referenceRange: '25–60 normal',
+        referenceRange: '25-60 normal',
         flag: greenStd > 70 ? 'high' : 'normal',
         interpretation: greenStd > 70
-            ? 'Increased contrast variation — vessel tortuosity / leakage'
+            ? 'Increased contrast variation - vessel tortuosity / leakage'
             : 'Typical vascular contrast',
       ),
     ];
@@ -141,8 +141,8 @@ class ImageRetinaAnalyzer {
       ].take(3).toList(),
       recommendations: [
         if (risk == RiskLevel.high || risk == RiskLevel.critical)
-          'URGENT: Consult an ophthalmologist — retinal laser / anti-VEGF may be needed.',
-        'Tight glycaemic control — target HbA1c < 7%.',
+          'URGENT: Consult an ophthalmologist - retinal laser / anti-VEGF may be needed.',
+        'Tight glycaemic control - target HbA1c < 7%.',
         'Annual dilated retinal exam with a specialist.',
         'Control blood pressure and lipids to reduce progression.',
       ],

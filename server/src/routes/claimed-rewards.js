@@ -4,7 +4,7 @@ const ClaimedReward = require('../models/ClaimedReward');
 
 const router = express.Router();
 
-// POST /api/claimed-rewards — save a claimed reward
+// POST /api/claimed-rewards - save a claimed reward
 router.post('/', auth, async (req, res) => {
   try {
     const { rewardType, title, content, coinsCost } = req.body;
@@ -28,7 +28,7 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-// GET /api/claimed-rewards — get all claimed rewards for user
+// GET /api/claimed-rewards - get all claimed rewards for user
 router.get('/', auth, async (req, res) => {
   try {
     const rewards = await ClaimedReward.find({ userId: req.user._id })
@@ -51,7 +51,7 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// DELETE /api/claimed-rewards/:id — delete a claimed reward
+// DELETE /api/claimed-rewards/:id - delete a claimed reward
 router.delete('/:id', auth, async (req, res) => {
   try {
     const reward = await ClaimedReward.findOne({

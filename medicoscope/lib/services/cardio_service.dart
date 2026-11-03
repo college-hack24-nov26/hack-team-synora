@@ -111,7 +111,7 @@ class CardioService {
 
   static AudioWaveform _buildWaveformForChart(
       Float32List samples, int sampleRate) {
-    // Downsample to 500 points — plenty for a responsive line chart without
+    // Downsample to 500 points - plenty for a responsive line chart without
     // overwhelming fl_chart on slower devices.
     const targetPoints = 500;
     final stride = math.max(1, samples.length ~/ targetPoints);
@@ -139,7 +139,7 @@ class CardioService {
   }
 
   static List<HeartRatePoint> _buildHeartRateRibbon(double avgBpm) {
-    // A 10-second ribbon with small ±3 bpm ripple — the autocorrelation gives
+    // A 10-second ribbon with small ±3 bpm ripple - the autocorrelation gives
     // a single average, so this creates a believable "tracking" visualisation.
     final rng = math.Random(avgBpm.toInt());
     final pts = <HeartRatePoint>[];

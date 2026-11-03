@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Aegis DEMO GO/NO-GO check — run this right before presenting to confirm the
+ * Aegis DEMO GO/NO-GO check - run this right before presenting to confirm the
  * agentic / gate story will actually work live. Exits non-zero on any failure
  * so you get a hard signal, not a surprise on stage.
  *
@@ -8,7 +8,7 @@
  *
  * Checks, in order:
  *   1. DB connects.
- *   2. KB is SEEDED with red-flag rules (the #1 silent failure — an empty KB
+ *   2. KB is SEEDED with red-flag rules (the #1 silent failure - an empty KB
  *      means NOTHING ever goes RED, so the gate demo looks broken).
  *   3. The gate produces RED for a critical input and GREEN for a benign one,
  *      using the REAL loaded KB (not a stub).
@@ -32,7 +32,7 @@ function check(ok, okMsg, failMsg) {
 
   const uri = process.env.MONGODB_URI;
   if (!uri) {
-    FAIL('MONGODB_URI not set — set it and re-run.');
+    FAIL('MONGODB_URI not set - set it and re-run.');
     process.exit(1);
   }
 
@@ -54,10 +54,10 @@ function check(ok, okMsg, failMsg) {
   const kb = await kbLoader.load(true);
   check(kb.kbVersion && kb.kbVersion !== 'none',
     `KB active: ${kb.kbVersion}`,
-    'KB NOT seeded — run: node aegis/seed-kb.js (nothing will go RED without this!)');
+    'KB NOT seeded - run: node aegis/seed-kb.js (nothing will go RED without this!)');
   check((kb.redFlagRules || []).length > 0,
     `KB has ${kb.redFlagRules.length} red-flag rules`,
-    'KB has ZERO red-flag rules — the gate can never block. Re-seed.');
+    'KB has ZERO red-flag rules - the gate can never block. Re-seed.');
   const hasSuicide = (kb.redFlagRules || []).some(r => r.flagKey === 'suicidal_ideation');
   check(hasSuicide,
     'suicidal_ideation red flag present (mental-health demo will work)',
@@ -133,10 +133,10 @@ function check(ok, okMsg, failMsg) {
   await mongoose.disconnect();
   console.log('');
   if (failures === 0) {
-    console.log('✅ GO — the agentic/gate demo path is working end-to-end.\n');
+    console.log('✅ GO - the agentic/gate demo path is working end-to-end.\n');
     process.exit(0);
   } else {
-    console.log(`❌ NO-GO — ${failures} check(s) failed. Fix before presenting.\n`);
+    console.log(`❌ NO-GO - ${failures} check(s) failed. Fix before presenting.\n`);
     process.exit(1);
   }
 })().catch((e) => {

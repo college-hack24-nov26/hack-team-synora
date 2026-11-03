@@ -13,7 +13,7 @@ async function ensureBooted() {
   _booted = true;
 }
 
-// The modality surface the agent (and judges) can see — incl. honest roadmap slots.
+// The modality surface the agent (and judges) can see - incl. honest roadmap slots.
 router.get('/', auth, async (req, res) => {
   await ensureBooted();
   res.json({ tools: registry.list() });

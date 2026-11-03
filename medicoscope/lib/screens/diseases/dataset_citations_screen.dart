@@ -52,7 +52,7 @@ class DatasetCitationsScreen extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            '${meta.title} screening — validated datasets',
+                            '${meta.title} screening - validated datasets',
                             style: TextStyle(
                               fontSize: 11,
                               color: isDark

@@ -1,11 +1,11 @@
 /**
- * Tool Registry — the only callable surface for the agent. A modality that
+ * Tool Registry - the only callable surface for the agent. A modality that
  * isn't registered is uncallable. Each tool registers a manifest (with a
  * MANDATORY fidelity tag) + a handler. The registry runs the handler and
  * forces the output through the fidelity gate, so honesty is enforced
  * centrally, not per-tool.
  *
- * Registration fails fast (throws) if a manifest is missing fidelity — the
+ * Registration fails fast (throws) if a manifest is missing fidelity - the
  * spec's "no default real; a manifest missing fidelity fails at boot."
  */
 const { gateEvidence, gateAction, FIDELITY, FidelityError } = require('./envelopes');
@@ -33,7 +33,7 @@ function has(id) { return _tools.has(id); }
 function get(id) { return _tools.get(id); }
 
 // A payload field counts as "present" only if it carries real content. Numbers
-// (including 0 — e.g. a genuine DR score of 0) and booleans count; undefined,
+// (including 0 - e.g. a genuine DR score of 0) and booleans count; undefined,
 // null, empty strings, empty arrays and empty objects do NOT.
 function _present(v) {
   if (v === undefined || v === null) return false;
@@ -98,7 +98,7 @@ async function invoke(id, input) {
   if (!entry) throw new Error(`unknown tool: ${id}`);
   const { manifest, handler } = entry;
 
-  // Roadmap tools never run a handler — they always return unavailable.
+  // Roadmap tools never run a handler - they always return unavailable.
   if (manifest.fidelity === 'roadmap') {
     return gateEvidence({ status: 'unavailable', value: null }, manifest);
   }

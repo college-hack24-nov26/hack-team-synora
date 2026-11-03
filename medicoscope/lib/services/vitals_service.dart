@@ -85,14 +85,20 @@ class VitalsService {
     await http.delete(url).timeout(const Duration(seconds: 10));
   }
 
+  // Vitals alerts are read from the Node backend (MongoDB) - the durable source
+  // of truth that survives chatbot restarts - so these require the user's auth
+  // token. The response shape matches the chatbot's original alert JSON.
   static Future<List<Map<String, dynamic>>> getDoctorAlerts({
     required String doctorId,
+    String? authToken,
   }) async {
     final url = Uri.parse(
-      '${ApiConstants.chatbotBaseUrl}${ApiConstants.vitalsDoctorAlerts}/$doctorId',
+      '${ApiConstants.baseUrl}${ApiConstants.vitalsDoctorAlerts}/$doctorId',
     );
 
-    final response = await http.get(url).timeout(const Duration(seconds: 15));
+    final response = await http
+        .get(url, headers: _authHeaders(authToken))
+        .timeout(const Duration(seconds: 15));
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
@@ -104,12 +110,15 @@ class VitalsService {
 
   static Future<List<Map<String, dynamic>>> getPatientAlerts({
     required String patientId,
+    String? authToken,
   }) async {
     final url = Uri.parse(
-      '${ApiConstants.chatbotBaseUrl}${ApiConstants.vitalsPatientAlerts}/$patientId',
+      '${ApiConstants.baseUrl}${ApiConstants.vitalsPatientAlerts}/$patientId',
     );
 
-    final response = await http.get(url).timeout(const Duration(seconds: 15));
+    final response = await http
+        .get(url, headers: _authHeaders(authToken))
+        .timeout(const Duration(seconds: 15));
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
@@ -119,19 +128,31 @@ class VitalsService {
     }
   }
 
-  static Future<void> markAlertRead({required String alertId}) async {
+  static Future<void> markAlertRead({
+    required String alertId,
+    String? authToken,
+  }) async {
     final url = Uri.parse(
-      '${ApiConstants.chatbotBaseUrl}/vitals/alerts/$alertId/read',
+      '${ApiConstants.baseUrl}/vitals/alerts/$alertId/read',
     );
 
-    await http.put(url).timeout(const Duration(seconds: 10));
+    await http
+        .put(url, headers: _authHeaders(authToken))
+        .timeout(const Duration(seconds: 10));
   }
 
-  static Future<void> deleteAlert({required String alertId}) async {
-    final url = Uri.parse(
-      '${ApiConstants.chatbotBaseUrl}/vitals/alerts/$alertId',
-    );
-
-    await http.delete(url).timeout(const Duration(seconds: 10));
+  // Note: there is no destructive delete of audit alerts on the backend; the
+  // alert history is kept in MongoDB. "deleteAlert" now just marks it read so
+  // it leaves the active feed without losing the record.
+  static Future<void> deleteAlert({
+    required String alertId,
+    String? authToken,
+  }) async {
+    await markAlertRead(alertId: alertId, authToken: authToken);
   }
+
+  static Map<String, String> _authHeaders(String? token) => {
+        'Content-Type': 'application/json',
+        if (token != null) 'Authorization': 'Bearer $token',
+      };
 }

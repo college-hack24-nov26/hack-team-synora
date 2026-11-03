@@ -56,16 +56,19 @@ class VitalsAnalyzer {
     }
 
     switch (disease) {
+      case DiseaseType.respiratory:
+        // Respiratory is screened acoustically, not from wearable vitals.
+        break;
       case DiseaseType.diabetes:
         addFinding(
           name: 'Resting Heart Rate',
           value: snapshot.restingHeartRate,
           unit: 'bpm',
-          referenceRange: '60–80 bpm typical',
+          referenceRange: '60-80 bpm typical',
           highWarn: 85,
           highCritical: 100,
           interpret: (v) {
-            if (v >= 100) return 'High resting HR — often seen with glycaemic dysregulation';
+            if (v >= 100) return 'High resting HR - often seen with glycaemic dysregulation';
             if (v >= 85) return 'Slightly elevated resting HR';
             return 'Normal resting HR';
           },
@@ -77,8 +80,8 @@ class VitalsAnalyzer {
           referenceRange: '> 30 ms healthy',
           lowCut: 30,
           interpret: (v) {
-            if (v < 20) return 'Very low HRV — autonomic stress marker';
-            if (v < 30) return 'Reduced HRV — glycaemic / stress correlation';
+            if (v < 20) return 'Very low HRV - autonomic stress marker';
+            if (v < 30) return 'Reduced HRV - glycaemic / stress correlation';
             return 'Healthy HRV';
           },
         );
@@ -89,8 +92,8 @@ class VitalsAnalyzer {
           referenceRange: 'Target ≥ 7,000 / day',
           lowCut: 5000,
           interpret: (v) {
-            if (v < 3000) return 'Sedentary — major diabetes risk factor';
-            if (v < 5000) return 'Low activity — aim for more movement';
+            if (v < 3000) return 'Sedentary - major diabetes risk factor';
+            if (v < 5000) return 'Low activity - aim for more movement';
             return 'Active lifestyle';
           },
         );
@@ -105,7 +108,7 @@ class VitalsAnalyzer {
           highWarn: 130,
           highCritical: 180,
           interpret: (v) {
-            if (v >= 180) return 'Hypertensive crisis — urgent care';
+            if (v >= 180) return 'Hypertensive crisis - urgent care';
             if (v >= 140) return 'Stage 2 hypertension';
             if (v >= 130) return 'Stage 1 hypertension';
             return 'Normal systolic';
@@ -129,7 +132,7 @@ class VitalsAnalyzer {
           name: 'Avg Heart Rate',
           value: snapshot.avgHeartRate,
           unit: 'bpm',
-          referenceRange: '60–100 bpm',
+          referenceRange: '60-100 bpm',
           highWarn: 100,
           highCritical: 130,
           interpret: (v) {
@@ -148,8 +151,8 @@ class VitalsAnalyzer {
           referenceRange: '≥ 95% healthy',
           lowCut: 95,
           interpret: (v) {
-            if (v < 90) return 'Severely low — urgent care';
-            if (v < 95) return 'Low SpO₂ — oxygen-carrying capacity reduced';
+            if (v < 90) return 'Severely low - urgent care';
+            if (v < 95) return 'Low SpO₂ - oxygen-carrying capacity reduced';
             return 'Normal SpO₂';
           },
         );
@@ -157,11 +160,11 @@ class VitalsAnalyzer {
           name: 'Resting Heart Rate',
           value: snapshot.restingHeartRate,
           unit: 'bpm',
-          referenceRange: '60–80 bpm typical',
+          referenceRange: '60-80 bpm typical',
           highWarn: 85,
           highCritical: 100,
           interpret: (v) {
-            if (v >= 100) return 'Compensatory tachycardia — classic anaemia sign';
+            if (v >= 100) return 'Compensatory tachycardia - classic anaemia sign';
             if (v >= 85) return 'Slightly elevated resting HR';
             return 'Normal resting HR';
           },
@@ -170,10 +173,10 @@ class VitalsAnalyzer {
           name: 'Avg Heart Rate',
           value: snapshot.avgHeartRate,
           unit: 'bpm',
-          referenceRange: '60–100 bpm',
+          referenceRange: '60-100 bpm',
           highWarn: 100,
           interpret: (v) {
-            if (v >= 100) return 'Elevated — heart working harder';
+            if (v >= 100) return 'Elevated - heart working harder';
             return 'Normal HR';
           },
         );
@@ -204,7 +207,7 @@ class VitalsAnalyzer {
       topContributors: contributors.take(3).toList(),
       recommendations: _recommendations(disease, risk, isSimulated),
       dataSource: isSimulated
-          ? 'Simulation fallback — connect a smartwatch for live data'
+          ? 'Simulation fallback - connect a smartwatch for live data'
           : 'Health Connect / HealthKit (live wearable data)',
       timestamp: DateTime.now(),
     );
@@ -215,7 +218,7 @@ class VitalsAnalyzer {
     final src = isSimulated ? '(simulated)' : '(live)';
     final disease = DiseaseRegistry.of(d).title.toLowerCase();
     if (counted == 0) {
-      return 'No wearable vitals available yet — connect a device or use simulation.';
+      return 'No wearable vitals available yet - connect a device or use simulation.';
     }
     switch (r) {
       case RiskLevel.critical:
@@ -240,7 +243,7 @@ class VitalsAnalyzer {
     }
     switch (d) {
       case DiseaseType.diabetes:
-        recs.add('Walk 30 minutes a day — reduces insulin resistance');
+        recs.add('Walk 30 minutes a day - reduces insulin resistance');
         recs.add('Follow up with an HbA1c lab test for confirmation');
         break;
       case DiseaseType.hypertension:
@@ -250,6 +253,9 @@ class VitalsAnalyzer {
       case DiseaseType.anemia:
         recs.add('Get a CBC + ferritin blood test');
         recs.add('Add iron-rich foods with vitamin C');
+        break;
+      case DiseaseType.respiratory:
+        recs.add('Use the Respiratory Check to record your breathing');
         break;
     }
     return recs;

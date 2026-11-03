@@ -68,7 +68,7 @@ router.put('/profile', auth, async (req, res) => {
   }
 });
 
-// PATCH /api/users/preferences — persist UI preferences (theme/language) so they
+// PATCH /api/users/preferences - persist UI preferences (theme/language) so they
 // follow the account across devices instead of living only on-device.
 router.patch('/preferences', auth, async (req, res) => {
   try {

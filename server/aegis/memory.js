@@ -1,5 +1,5 @@
 /**
- * Memory service — episode lifecycle, long-term memory upkeep, and the
+ * Memory service - episode lifecycle, long-term memory upkeep, and the
  * context-assembly that feeds the agent/chatbot. Pure helpers (assembleContext,
  * shouldReopen) are exported for testing; DB ops use the models.
  */
@@ -123,7 +123,7 @@ async function upsertFact(patientId, fact) {
   );
   if (updated) return updated;
 
-  // Not present yet — atomically push it (upserting the memory doc if needed).
+  // Not present yet - atomically push it (upserting the memory doc if needed).
   return PatientMemory.findOneAndUpdate(
     { patientId },
     {

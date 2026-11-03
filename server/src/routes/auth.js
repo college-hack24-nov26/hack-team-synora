@@ -25,7 +25,7 @@ router.post('/register', [
   body('email').isEmail().withMessage('Valid email is required'),
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
   body('name').trim().notEmpty().withMessage('Name is required'),
-  // 'admin' is intentionally NOT self-registerable — admins are provisioned
+  // 'admin' is intentionally NOT self-registerable - admins are provisioned
   // out-of-band (seed/invite). Allowing it here would let anyone mint an admin.
   body('role').isIn(['patient', 'doctor']).withMessage('Role must be patient or doctor'),
 ], async (req, res) => {
@@ -132,7 +132,7 @@ router.post('/login', [
   }
 });
 
-// POST /api/auth/logout — revoke the current token's session (real logout).
+// POST /api/auth/logout - revoke the current token's session (real logout).
 router.post('/logout', auth, async (req, res) => {
   try {
     const tokenHash = crypto.createHash('sha256').update(req.token).digest('hex');

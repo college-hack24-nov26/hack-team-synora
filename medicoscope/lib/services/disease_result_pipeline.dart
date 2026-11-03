@@ -42,17 +42,34 @@ class DiseaseResultPipeline {
     BuildContext context,
     DiseaseRiskResult result,
   ) async {
+    // Capture providers BEFORE any await so we never touch BuildContext across
+    // an async gap (the providers themselves are safe to hold).
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final coins = Provider.of<CoinsProvider>(context, listen: false);
+
+    // Local cache (fast, offline-friendly) ...
     await DiseaseRiskStore.save(result);
+
+    // ... and the durable source of truth in MongoDB, so the screening history
+    // survives uninstall/device-switch and is visible to the patient's doctor.
+    // Best-effort: a backend hiccup must never break the on-device result flow.
+    if (auth.token != null && auth.user != null) {
+      try {
+        final api = ApiService(token: auth.token);
+        await api.post('/detections/risk-result', {
+          'patientId': auth.user!.id,
+          ...result.toJson(),
+        });
+      } catch (_) {}
+    }
 
     // Award MindCoins for the detection (rate-limited: once per modality per day).
     try {
-      final coins = Provider.of<CoinsProvider>(context, listen: false);
       final modality = '${result.disease.name}_${result.method.name}';
       await coins.addDetectionCoins(modality: modality, amount: 10);
     } catch (_) {}
 
-    // Fire alert for high/critical — best effort, won't throw.
-    final auth = Provider.of<AuthProvider>(context, listen: false);
+    // Fire alert for high/critical - best effort, won't throw.
     final user = auth.user;
     if (user == null) return;
     final patientId = user.id;
@@ -63,6 +80,7 @@ class DiseaseResultPipeline {
       patientId: patientId,
       patientName: patientName,
       doctorId: doctorId,
+      authToken: auth.token,
     );
   }
 
@@ -82,6 +100,6 @@ class DiseaseResultPipeline {
     }
   }
 
-  /// Unused import guard — keeps DiseaseRegistry available for callers.
+  /// Unused import guard - keeps DiseaseRegistry available for callers.
   static String diseaseTitle(DiseaseType d) => DiseaseRegistry.of(d).title;
 }

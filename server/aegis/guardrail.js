@@ -1,5 +1,5 @@
 /**
- * Output guardrail — the no-diagnosis lint. Pure + testable.
+ * Output guardrail - the no-diagnosis lint. Pure + testable.
  *
  * MedicoScope is a SCREENING tool, not a diagnostic one. Patient-facing text
  * must never assert a diagnosis ("you have diabetes") or prescribe dosing.

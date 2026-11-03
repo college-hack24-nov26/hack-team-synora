@@ -143,7 +143,7 @@ class _SymptomQuestionnaireScreenState
               const SizedBox(height: 8),
               Text(
                 'Tap Yes / Sometimes / No for each. Add context in the notes '
-                'box below if you like — our AI will use that too.',
+                'box below if you like - our AI will use that too.',
                 style: TextStyle(
                   fontSize: 12,
                   height: 1.5,

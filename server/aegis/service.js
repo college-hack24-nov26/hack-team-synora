@@ -1,5 +1,5 @@
 /**
- * Aegis service — binds the pure gate to real MongoDB-backed dependencies.
+ * Aegis service - binds the pure gate to real MongoDB-backed dependencies.
  * This is what the HTTP routes call. Real action executors are injected so
  * the same gate can book appointments, fire alerts, etc.
  */
@@ -52,7 +52,7 @@ async function notifyDoctor(proposal, verdict) {
 }
 
 async function openCase(proposal, verdict, meta) {
-  // Singleton per (patient, flagset, day) — upsert on dedupeKey.
+  // Singleton per (patient, flagset, day) - upsert on dedupeKey.
   const slaDeadline = new Date(Date.now() + 15 * 60 * 1000); // 15-min SLA
   const doc = {
     patientId: proposal.patientId,
@@ -86,7 +86,7 @@ async function openCase(proposal, verdict, meta) {
   try {
     // Atomic singleton-or-fetch on the unique dedupeKey: inserts a new case or
     // returns the existing one for this (patient, flagset, day). $setOnInsert
-    // means an existing case is returned UNMODIFIED — the frozen proposal is
+    // means an existing case is returned UNMODIFIED - the frozen proposal is
     // never silently overwritten, which is the human-in-the-loop guarantee.
     return await ClinicianCase.findOneAndUpdate(
       { dedupeKey: meta.dedupeKey },
@@ -95,7 +95,7 @@ async function openCase(proposal, verdict, meta) {
     );
   } catch (e) {
     // Lost the insert race against a concurrent caller (duplicate-key on the
-    // unique index). The winner's document exists now — fetch and return it.
+    // unique index). The winner's document exists now - fetch and return it.
     return ClinicianCase.findOne({ dedupeKey: meta.dedupeKey });
   }
 }

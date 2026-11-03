@@ -4,7 +4,7 @@ const ChatHistory = require('../models/ChatHistory');
 
 const router = express.Router();
 
-// POST /api/chat/message — save a chat message pair
+// POST /api/chat/message - save a chat message pair
 router.post('/message', auth, async (req, res) => {
   try {
     const { sessionId, userMessage, assistantMessage } = req.body;
@@ -38,7 +38,7 @@ router.post('/message', auth, async (req, res) => {
   }
 });
 
-// GET /api/chat/history — get all chat sessions for user
+// GET /api/chat/history - get all chat sessions for user
 router.get('/history', auth, async (req, res) => {
   try {
     const chats = await ChatHistory.find({ userId: req.user._id })
@@ -63,7 +63,7 @@ router.get('/history', auth, async (req, res) => {
   }
 });
 
-// GET /api/chat/session/:sessionId — get full chat session
+// GET /api/chat/session/:sessionId - get full chat session
 router.get('/session/:sessionId', auth, async (req, res) => {
   try {
     const chat = await ChatHistory.findOne({
@@ -82,7 +82,7 @@ router.get('/session/:sessionId', auth, async (req, res) => {
   }
 });
 
-// DELETE /api/chat/session/:sessionId — delete a chat session
+// DELETE /api/chat/session/:sessionId - delete a chat session
 router.delete('/session/:sessionId', auth, async (req, res) => {
   try {
     const result = await ChatHistory.findOneAndDelete({

@@ -58,7 +58,7 @@ class DiseaseAlert {
 /// Disease alerting uses the same semantic pipeline as vitals alerts:
 ///  • Store locally in SharedPreferences so patient / doctor see them instantly.
 ///  • Best-effort push to the backend's mental_health/notifications endpoint
-///    (same data shape — "urgency" + "patientId" + "clinicalReport") so
+///    (same data shape - "urgency" + "patientId" + "clinicalReport") so
 ///    doctors see them in the existing notifications center.
 class DiseaseAlertService {
   static const _key = 'disease_alerts';
@@ -101,7 +101,7 @@ class DiseaseAlertService {
     return alert;
   }
 
-  /// Entry point — called by every disease method screen after saving
+  /// Entry point - called by every disease method screen after saving
   /// the result. High / critical results create an alert + doctor notify.
   static Future<DiseaseAlert?> maybeAlert({
     required DiseaseRiskResult result,
@@ -114,7 +114,7 @@ class DiseaseAlertService {
     final alert = await _storeLocally(result);
 
     // Best-effort doctor notification via the existing backend endpoint, which
-    // now requires auth — forward the patient's token so the notification is
+    // now requires auth - forward the patient's token so the notification is
     // accepted and persisted (otherwise it would 401 and be lost).
     if (doctorId != null && doctorId.isNotEmpty && authToken != null) {
       try {
@@ -143,7 +143,7 @@ class DiseaseAlertService {
             )
             .timeout(const Duration(seconds: 10));
       } catch (_) {
-        // Offline / server down — local alert is still stored.
+        // Offline / server down - local alert is still stored.
       }
     }
     return alert;
@@ -160,7 +160,7 @@ class DiseaseAlertService {
     if (r.findings.isNotEmpty) {
       buf.writeln('\nKey findings:');
       for (final f in r.findings) {
-        buf.writeln('  • ${f.name} ${f.value} ${f.unit} (${f.flag}) — ${f.interpretation}');
+        buf.writeln('  • ${f.name} ${f.value} ${f.unit} (${f.flag}) - ${f.interpretation}');
       }
     }
     if (r.recommendations.isNotEmpty) {
@@ -220,7 +220,7 @@ class DiseaseAlertService {
 
   /// Minimal-fields variant used by legacy modalities (skin scan, heart
   /// sound, OG vitals alerts) that don't build a full DiseaseRiskResult.
-  /// Only sends to the backend — no local store write.
+  /// Only sends to the backend - no local store write.
   static Future<void> sendGenericAlert({
     required String doctorId,
     required String patientId,
@@ -246,7 +246,7 @@ class DiseaseAlertService {
               'patientName': patientName,
               'clinicalReport': clinicalReport,
               'urgency': urgency,
-              'transcript': '[Auto] MedicoScope screening — $source',
+              'transcript': '[Auto] MedicoScope screening - $source',
               'source': source,
               ...fix.toJson(),
             }),
