@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:medicoscope/models/detection_record.dart';
 import 'package:medicoscope/models/quality_gate_result.dart';
 
@@ -210,9 +211,22 @@ class CertifiedReportPdfService {
     document.dispose();
 
     final fileName = 'Certified_Report_${record.id ?? DateTime.now().millisecondsSinceEpoch}.pdf';
-    File? savedFile;
+    
+    // Save to App Documents and Cache for sharing
+    final tempDir = await getTemporaryDirectory();
+    final tempFile = File('${tempDir.path}/$fileName');
+    await tempFile.writeAsBytes(bytes, flush: true);
 
-    // Try saving directly to public Download folder on Android
+    File savedFile = tempFile;
+
+    try {
+      final docDir = await getApplicationDocumentsDirectory();
+      final docFile = File('${docDir.path}/$fileName');
+      await docFile.writeAsBytes(bytes, flush: true);
+      savedFile = docFile;
+    } catch (_) {}
+
+    // Try saving directly to public Download folder on Android if accessible
     try {
       final downloadDir = Directory('/storage/emulated/0/Download');
       if (await downloadDir.exists()) {
@@ -222,21 +236,21 @@ class CertifiedReportPdfService {
       }
     } catch (_) {}
 
-    // Fallback or secondary save to App Documents Directory
-    if (savedFile == null) {
-      final dir = await getApplicationDocumentsDirectory();
-      final internalFile = File('${dir.path}/$fileName');
-      await internalFile.writeAsBytes(bytes, flush: true);
-      savedFile = internalFile;
-    }
-
-    // Automatically trigger native device viewer / handler
+    // Automatically trigger system share/save/open sheet
     try {
-      final uri = Uri.file(savedFile.path);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      }
-    } catch (_) {}
+      await Share.shareXFiles(
+        [XFile(savedFile.path, name: fileName, mimeType: 'application/pdf')],
+        subject: 'Aegis Certified Clinical Report #${qualityResult.auditHash}',
+      );
+    } catch (_) {
+      // Fallback to url launcher
+      try {
+        final uri = Uri.file(savedFile.path);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        }
+      } catch (_) {}
+    }
 
     return savedFile;
   }

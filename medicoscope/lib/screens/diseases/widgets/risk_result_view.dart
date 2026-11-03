@@ -564,12 +564,25 @@ class RiskResultView extends StatelessWidget {
                         const SizedBox(width: 8),
                         Expanded(
                           child: ElevatedButton.icon(
-                            onPressed: () => QualityGateSheet.show(
-                              ctx,
-                              result: qg,
-                              patientName: 'Patient Direct Encounter',
-                              title: 'Patient Quality Gate Audit',
-                            ),
+                            onPressed: () {
+                              final dummyRecord = DetectionRecord(
+                                id: 'REC-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
+                                className: result.headline,
+                                confidence: result.score,
+                                category: result.disease.name,
+                                performedBy: 'Patient Self-Scan',
+                                performedByName: 'Patient Direct Encounter',
+                                description: result.headline,
+                              );
+                              QualityGateSheet.show(
+                                ctx,
+                                result: qg,
+                                record: dummyRecord,
+                                patientName: 'Patient Direct Encounter',
+                                doctorNotes: result.recommendations.join('\n• '),
+                                title: 'Patient Quality Gate Audit',
+                              );
+                            },
                             icon: const Icon(Icons.shield_outlined, size: 15),
                             label: const Text('Inspect Audit', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
                             style: ElevatedButton.styleFrom(
