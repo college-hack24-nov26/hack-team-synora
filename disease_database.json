@@ -1,0 +1,274 @@
+{
+  "modalities": {
+    "skin": {
+      "display_name": "Skin / Dermascopy",
+      "model_file": "assets/models/skin_float16.tflite",
+      "model_type": "object_detection",
+      "model_architecture": "YOLOv8s",
+      "model_size_mb": 22.5,
+      "input": {
+        "format": "image",
+        "accepted_types": ["JPEG", "PNG", "GIF", "WebP", "BMP"],
+        "source": ["camera", "gallery"],
+        "preprocessing": {
+          "resize": "416x416",
+          "normalization": "0-1 (pixel / 255.0)",
+          "channels": 3,
+          "channel_order": "RGB",
+          "tensor_format": "NCHW or NHWC (auto-detected)",
+          "data_type": "Float32"
+        },
+        "camera_quality": 85
+      },
+      "output": {
+        "type": "object_detection",
+        "tensor_shape": "[1, num_detections, num_classes + 5]",
+        "confidence_calculation": "objectness * max_class_probability",
+        "confidence_threshold": 0.0001,
+        "result_format": {
+          "className": "string",
+          "confidence": "double (0.0 - 1.0)",
+          "description": "string",
+          "model3dPath": "string",
+          "category": "skin"
+        }
+      },
+      "diseases": [
+        {
+          "class_index": 0,
+          "class_name": "Actinic Keratoses and Intraepithelial Carcinoma",
+          "category": "skin",
+          "description": "A precancerous skin condition with rough, scaly patches on sun-exposed areas. Appears as dry, rough patches that feel like sandpaper, typically pink, red, or brown in color. Can progress to skin cancer if untreated.",
+          "model3d": "assets/3d_models/heart.glb"
+        },
+        {
+          "class_index": 1,
+          "class_name": "Basal Cell Carcinoma",
+          "category": "skin",
+          "description": "The most common type of skin cancer, appearing as a pearly or waxy bump, often with visible blood vessels. May also present as a flat, flesh-colored or brown scar-like lesion. Grows slowly and rarely spreads.",
+          "model3d": "assets/3d_models/heart.glb"
+        },
+        {
+          "class_index": 2,
+          "class_name": "Benign Keratosis-like Lesions",
+          "category": "skin",
+          "description": "Non-cancerous skin growths with a \"pasted-on\" appearance. Usually brown, black, or tan with a waxy, scaly, or rough texture. Common in older adults and generally harmless.",
+          "model3d": "assets/3d_models/heart.glb"
+        },
+        {
+          "class_index": 3,
+          "class_name": "Dermatofibroma",
+          "category": "skin",
+          "description": "A harmless, firm bump under the skin, typically pink or brown in color. Often appears on the legs and may dimple inward when pinched. Usually painless but can be tender.",
+          "model3d": "assets/3d_models/heart.glb"
+        },
+        {
+          "class_index": 4,
+          "class_name": "Melanocytic Nevi",
+          "category": "skin",
+          "description": "Common moles that are typically brown, round, and uniform in color. Most are benign and appear during childhood. Monitor for changes using the ABCDE rule (Asymmetry, Border, Color, Diameter, Evolution).",
+          "model3d": "assets/3d_models/heart.glb"
+        },
+        {
+          "class_index": 5,
+          "class_name": "Melanoma",
+          "category": "skin",
+          "description": "A serious form of skin cancer originating from melanocytes. Characterized by asymmetric shape, irregular borders, multiple colors, large diameter, and evolving appearance. Early detection is crucial for successful treatment.",
+          "model3d": "assets/3d_models/melanoma.glb"
+        },
+        {
+          "class_index": 6,
+          "class_name": "Vascular Lesions",
+          "category": "skin",
+          "description": "Abnormal blood vessel growths appearing as red, purple, or blue marks on the skin. Can include hemangiomas and other vascular malformations. Most are benign and may fade over time.",
+          "model3d": "assets/3d_models/heart.glb"
+        }
+      ]
+    },
+    "chest": {
+      "display_name": "Chest X-Ray",
+      "model_file": "assets/models/chest_float16.tflite",
+      "model_type": "object_detection",
+      "model_architecture": "YOLOv8s",
+      "model_size_mb": 22.5,
+      "input": {
+        "format": "image",
+        "accepted_types": ["JPEG", "PNG", "GIF", "WebP", "BMP"],
+        "source": ["camera", "gallery"],
+        "preprocessing": {
+          "resize": "416x416",
+          "normalization": "0-1 (pixel / 255.0)",
+          "channels": 3,
+          "channel_order": "RGB",
+          "tensor_format": "NCHW or NHWC (auto-detected)",
+          "data_type": "Float32"
+        },
+        "camera_quality": 85
+      },
+      "output": {
+        "type": "object_detection",
+        "tensor_shape": "[1, num_detections, num_classes + 5]",
+        "confidence_calculation": "objectness * max_class_probability",
+        "confidence_threshold": 0.0001,
+        "result_format": {
+          "className": "string",
+          "confidence": "double (0.0 - 1.0)",
+          "description": "string",
+          "model3dPath": "string",
+          "category": "chest"
+        }
+      },
+      "diseases": [
+        {
+          "class_index": 0,
+          "class_name": "Atelectasis",
+          "category": "chest",
+          "description": "Partial or complete lung collapse where air sacs deflate. Appears as increased density on X-ray with volume loss. May cause shortness of breath, coughing, and chest pain.",
+          "model3d": "assets/3d_models/heart.glb"
+        },
+        {
+          "class_index": 1,
+          "class_name": "Cardiomegaly",
+          "category": "chest",
+          "description": "Enlarged heart often indicating underlying cardiovascular conditions. May cause shortness of breath, irregular heartbeat, and swelling in legs. Requires medical evaluation to determine the cause.",
+          "model3d": "assets/3d_models/heart.glb"
+        },
+        {
+          "class_index": 2,
+          "class_name": "Effusion",
+          "category": "chest",
+          "description": "Abnormal fluid accumulation in the pleural space between lungs and chest wall. Causes shortness of breath, chest pain, and cough. Can be caused by heart failure, infection, or cancer.",
+          "model3d": "assets/3d_models/heart.glb"
+        },
+        {
+          "class_index": 3,
+          "class_name": "Infiltrate",
+          "category": "chest",
+          "description": "Abnormal substance accumulation in lung tissue, appearing as white patches on X-ray. May indicate inflammation, infection, or fluid buildup. Symptoms include shortness of breath, cough, and chest pain.",
+          "model3d": "assets/3d_models/heart.glb"
+        },
+        {
+          "class_index": 4,
+          "class_name": "Mass",
+          "category": "chest",
+          "description": "Abnormal growth larger than 3cm in the lung. Appears as a rounded shadow on X-ray. May be benign or malignant, requiring further investigation with CT scan or biopsy.",
+          "model3d": "assets/3d_models/heart.glb"
+        },
+        {
+          "class_index": 5,
+          "class_name": "Nodule",
+          "category": "chest",
+          "description": "Small abnormal growth less than 3cm in the lung, often appearing as a white spot on X-ray. Most are benign, but monitoring is important. Usually asymptomatic and found incidentally.",
+          "model3d": "assets/3d_models/heart.glb"
+        },
+        {
+          "class_index": 6,
+          "class_name": "Pneumonia",
+          "category": "chest",
+          "description": "Lung infection causing inflammation and fluid-filled air sacs. Symptoms include cough with phlegm, fever, chest pain, and difficulty breathing. Can be caused by bacteria, viruses, or fungi.",
+          "model3d": "assets/3d_models/heart.glb"
+        },
+        {
+          "class_index": 7,
+          "class_name": "Pneumothorax",
+          "category": "chest",
+          "description": "Collapsed lung caused by air leaking into the pleural space. Causes sudden sharp chest pain and shortness of breath. Requires immediate medical attention, especially if severe.",
+          "model3d": "assets/3d_models/heart.glb"
+        }
+      ]
+    },
+    "eye": {
+      "display_name": "Eye / Fundus",
+      "model_file": "assets/models/eye_float16.tflite",
+      "model_type": "classification",
+      "model_architecture": "Classification CNN",
+      "model_size_mb": 10.2,
+      "input": {
+        "format": "image",
+        "accepted_types": ["JPEG", "PNG", "GIF", "WebP", "BMP"],
+        "source": ["camera", "gallery"],
+        "preprocessing": {
+          "resize": "416x416",
+          "normalization": "0-1 (pixel / 255.0)",
+          "channels": 3,
+          "channel_order": "RGB",
+          "tensor_format": "NCHW or NHWC (auto-detected)",
+          "data_type": "Float32"
+        },
+        "camera_quality": 85
+      },
+      "output": {
+        "type": "classification",
+        "tensor_shape": "[1, num_classes]",
+        "confidence_calculation": "softmax probability (max class)",
+        "confidence_threshold": 0.5,
+        "result_format": {
+          "className": "string",
+          "confidence": "double (0.0 - 1.0)",
+          "description": "string",
+          "model3dPath": "string",
+          "category": "eye"
+        }
+      },
+      "diseases": [
+        {
+          "class_index": 0,
+          "class_name": "Red Lesions",
+          "category": "eye",
+          "description": "Retinal hemorrhages appearing as red spots or patches in the eye fundus. Can indicate diabetes, high blood pressure, blood disorders, or trauma. May cause blurred vision, floaters, or vision loss.",
+          "model3d": "assets/3d_models/heart.glb"
+        }
+      ]
+    },
+    "brain": {
+      "display_name": "Brain MRI",
+      "model_file": "assets/models/brain_float16.tflite",
+      "model_type": "object_detection",
+      "model_architecture": "YOLOv8s",
+      "model_size_mb": 22.5,
+      "input": {
+        "format": "image",
+        "accepted_types": ["JPEG", "PNG", "GIF", "WebP", "BMP"],
+        "source": ["camera", "gallery"],
+        "preprocessing": {
+          "resize": "416x416",
+          "normalization": "0-1 (pixel / 255.0)",
+          "channels": 3,
+          "channel_order": "RGB",
+          "tensor_format": "NCHW or NHWC (auto-detected)",
+          "data_type": "Float32"
+        },
+        "camera_quality": 85
+      },
+      "output": {
+        "type": "object_detection",
+        "tensor_shape": "[1, num_detections, num_classes + 5]",
+        "confidence_calculation": "objectness * max_class_probability",
+        "confidence_threshold": 0.0001,
+        "result_format": {
+          "className": "string",
+          "confidence": "double (0.0 - 1.0)",
+          "description": "string",
+          "model3dPath": "string",
+          "category": "brain"
+        }
+      },
+      "diseases": [
+        {
+          "class_index": 0,
+          "class_name": "Tumor-Cell",
+          "category": "brain",
+          "description": "Brain tumor (glioma) originating from glial cells. Symptoms include headaches, nausea, vision problems, seizures, and cognitive changes. Appears as irregular mass on MRI with possible enhancement and edema.",
+          "model3d": "assets/3d_models/heart.glb"
+        }
+      ]
+    }
+  },
+  "metadata": {
+    "total_modalities": 4,
+    "total_diseases": 17,
+    "model_format": "TensorFlow Lite (float16 quantized)",
+    "inference_engine": "tflite_flutter 0.11.0",
+    "app_framework": "Flutter 3.6.0+"
+  }
+}
