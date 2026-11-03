@@ -68,4 +68,25 @@ router.put('/profile', auth, async (req, res) => {
   }
 });
 
+// PATCH /api/users/preferences — persist UI preferences (theme/language) so they
+// follow the account across devices instead of living only on-device.
+router.patch('/preferences', auth, async (req, res) => {
+  try {
+    const { theme, language } = req.body || {};
+    const update = {};
+    if (theme !== undefined) update['preferences.theme'] = theme;
+    if (language !== undefined) update['preferences.language'] = language;
+    if (Object.keys(update).length === 0) {
+      return res.status(400).json({ message: 'Nothing to update' });
+    }
+    const user = await require('../models/User').findByIdAndUpdate(
+      req.user._id, { $set: update }, { new: true }
+    );
+    res.json({ preferences: user.preferences });
+  } catch (error) {
+    console.error('Preferences update error:', error);
+    res.status(500).json({ message: 'Server error updating preferences' });
+  }
+});
+
 module.exports = router;

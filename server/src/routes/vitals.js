@@ -1,6 +1,7 @@
 const express = require('express');
 const auth = require('../middleware/auth');
 const roleCheck = require('../middleware/roleCheck');
+const patientAccess = require('../middleware/patientAccess');
 const VitalsSummary = require('../models/VitalsSummary');
 
 const router = express.Router();
@@ -67,7 +68,9 @@ router.get('/summaries', auth, roleCheck('patient'), async (req, res) => {
 });
 
 // GET /api/vitals/summaries/:patientId - get patient's vitals summaries (doctor)
-router.get('/summaries/:patientId', auth, roleCheck('doctor'), async (req, res) => {
+// patientAccess enforces the doctor↔patient link so a doctor cannot read an
+// unrelated patient's vitals just by changing the id.
+router.get('/summaries/:patientId', auth, roleCheck('doctor'), patientAccess(), async (req, res) => {
   try {
     const summaries = await VitalsSummary.find({ patientId: req.params.patientId })
       .sort({ createdAt: -1 })

@@ -29,7 +29,14 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// PUT /api/rewards — sync/update rewards from client
+// PUT /api/rewards — sync/update rewards from client.
+//
+// Loss-proof sync: monotonic fields (totalCoins, totalSessions, longestStreak)
+// are merged with $max so an out-of-order or stale write from a second device
+// can NEVER lower an accumulated total — the root cause of cross-device coin
+// divergence. Streak/claim/date fields are $set to the latest reported value.
+// This makes the server safe regardless of client send order, complementing
+// the client's "whichever is higher" load logic.
 router.put('/', auth, async (req, res) => {
   try {
     const {
@@ -46,18 +53,20 @@ router.put('/', auth, async (req, res) => {
     const rewards = await Rewards.findOneAndUpdate(
       { userId: req.user._id },
       {
-        $set: {
+        $max: {
           totalCoins: totalCoins ?? 0,
           totalSessions: totalSessions ?? 0,
-          currentStreak: currentStreak ?? 0,
           longestStreak: longestStreak ?? 0,
+        },
+        $set: {
+          currentStreak: currentStreak ?? 0,
           lastSessionDate: lastSessionDate ?? null,
           lastChatRewardDate: lastChatRewardDate ?? null,
           streak3Claimed: streak3Claimed ?? false,
           streak7Claimed: streak7Claimed ?? false,
         },
       },
-      { upsert: true, new: true }
+      { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
     res.json({ rewards });

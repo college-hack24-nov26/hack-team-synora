@@ -1,19 +1,33 @@
+const crypto = require('crypto');
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Patient = require('../models/Patient');
 const Doctor = require('../models/Doctor');
+const Session = require('../models/Session');
+const auth = require('../middleware/auth');
 const generateUniqueCode = require('../utils/generateCode');
 
 const router = express.Router();
+
+// Record a server-side session for an issued token (enables later revocation).
+// Best-effort: a session-store failure must never block login/registration.
+async function recordSession(userId, token, deviceId) {
+  try {
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    await Session.create({ userId, tokenHash, deviceId: deviceId || '' });
+  } catch (_) { /* non-fatal */ }
+}
 
 // POST /api/auth/register
 router.post('/register', [
   body('email').isEmail().withMessage('Valid email is required'),
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
   body('name').trim().notEmpty().withMessage('Name is required'),
-  body('role').isIn(['patient', 'doctor', 'admin']).withMessage('Role must be patient, doctor, or admin'),
+  // 'admin' is intentionally NOT self-registerable — admins are provisioned
+  // out-of-band (seed/invite). Allowing it here would let anyone mint an admin.
+  body('role').isIn(['patient', 'doctor']).withMessage('Role must be patient or doctor'),
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -66,6 +80,7 @@ router.post('/register', [
       process.env.JWT_SECRET,
       { expiresIn: '30d' }
     );
+    await recordSession(user._id, token, req.body.deviceId);
 
     res.status(201).json({
       token,
@@ -105,6 +120,7 @@ router.post('/login', [
       process.env.JWT_SECRET,
       { expiresIn: '30d' }
     );
+    await recordSession(user._id, token, req.body.deviceId);
 
     res.json({
       token,
@@ -113,6 +129,17 @@ router.post('/login', [
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ message: 'Server error during login' });
+  }
+});
+
+// POST /api/auth/logout — revoke the current token's session (real logout).
+router.post('/logout', auth, async (req, res) => {
+  try {
+    const tokenHash = crypto.createHash('sha256').update(req.token).digest('hex');
+    await Session.updateOne({ tokenHash }, { $set: { revoked: true } });
+    res.json({ status: 'logged_out' });
+  } catch (error) {
+    res.status(500).json({ message: 'Logout failed' });
   }
 });
 

@@ -1,5 +1,6 @@
 const express = require('express');
 const auth = require('../middleware/auth');
+const roleCheck = require('../middleware/roleCheck');
 const MindSpaceSession = require('../models/MindSpaceSession');
 
 const router = express.Router();
@@ -42,8 +43,10 @@ router.get('/history', auth, async (req, res) => {
   }
 });
 
-// GET /api/mindspace/doctor/:patientId — get mindspace reports for doctor
-router.get('/doctor/:patientId', auth, async (req, res) => {
+// GET /api/mindspace/doctor/:patientId — get mindspace reports for doctor.
+// Doctor-only; the query is already scoped to doctorId: req.user._id so a
+// doctor only ever sees sessions where THEY are the assigned doctor.
+router.get('/doctor/:patientId', auth, roleCheck('doctor'), async (req, res) => {
   try {
     const sessions = await MindSpaceSession.find({
       userId: req.params.patientId,
