@@ -7,11 +7,13 @@ import 'package:medicoscope/models/detection_record.dart';
 import 'package:medicoscope/data/disease_database.dart';
 import 'package:medicoscope/models/quality_gate_result.dart';
 import 'package:medicoscope/services/quality_gate_service.dart';
+import 'package:medicoscope/services/certified_report_pdf_service.dart';
 import 'package:medicoscope/core/widgets/quality_gate_sheet.dart';
 import 'package:provider/provider.dart';
 import 'package:medicoscope/core/theme/theme_provider.dart';
 import 'package:medicoscope/core/locale/locale_provider.dart';
 import 'package:medicoscope/core/locale/app_strings.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ReportDetailScreen extends StatefulWidget {
   final String patientName;
@@ -31,6 +33,41 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
   final TextEditingController _notesCtrl = TextEditingController();
   bool _isFinalized = false;
   QualityGateResult? _finalizedGateResult;
+
+  String get _storageKey =>
+      'report_finalized_${widget.record.id ?? widget.record.timestamp.millisecondsSinceEpoch}';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPersistedState();
+  }
+
+  Future<void> _loadPersistedState() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final isFinal = prefs.getBool(_storageKey) ?? false;
+      final savedNotes = prefs.getString('${_storageKey}_notes');
+      if (savedNotes != null && savedNotes.isNotEmpty) {
+        _notesCtrl.text = savedNotes;
+      }
+      if (isFinal && mounted) {
+        final qg = _evaluateCurrentQuality();
+        setState(() {
+          _isFinalized = true;
+          _finalizedGateResult = qg;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _persistFinalizedState() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_storageKey, true);
+      await prefs.setString('${_storageKey}_notes', _notesCtrl.text);
+    } catch (_) {}
+  }
 
   @override
   void dispose() {
@@ -165,12 +202,18 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
     final finalized = await QualityGateSheet.show(
       context,
       result: qg,
+      record: widget.record,
+      patientName: widget.patientName,
+      doctorNotes: _notesCtrl.text,
+      onNotesUpdated: (newNotes) {
+        setState(() => _notesCtrl.text = newNotes);
+      },
       title: 'Report Quality Gate',
       onAutoFix: () {
         Navigator.of(context).pop();
         setState(() {
           _notesCtrl.text =
-              'Clinical impression consistent with ${widget.record.className}. Patient advised to schedule clinical follow-up within 14 days and report any acute symptom changes.';
+              'Clinical impression consistent with ${widget.record.className}. Patient advised to schedule clinical follow-up within 14 business days and report any acute symptom changes.';
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -191,12 +234,39 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
         _isFinalized = true;
         _finalizedGateResult = updatedQg;
       });
+      await _persistFinalizedState();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('✅ Report signed and sealed (#${updatedQg.auditHash})'),
           backgroundColor: const Color(0xFF2ECC71),
         ),
       );
+    }
+  }
+
+  Future<void> _exportCertifiedPdf() async {
+    if (_finalizedGateResult == null) return;
+    try {
+      final file = await CertifiedReportPdfService.generateAndSave(
+        record: widget.record,
+        patientName: widget.patientName,
+        qualityResult: _finalizedGateResult!,
+        doctorNotes: _notesCtrl.text,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('📄 PDF saved: ${file.path.split("/").last.split("\\").last}'),
+            backgroundColor: const Color(0xFF2ECC71),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('PDF notice: $e')),
+        );
+      }
     }
   }
 
@@ -356,6 +426,11 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                                     ),
                                   ],
                                 ),
+                              ),
+                              IconButton(
+                                onPressed: _exportCertifiedPdf,
+                                icon: const Icon(Icons.picture_as_pdf_outlined, color: Colors.white, size: 20),
+                                tooltip: 'Export Certified PDF',
                               ),
                               IconButton(
                                 onPressed: _copyCertifiedReport,
@@ -540,8 +615,10 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                         children: [
                           Row(
                             children: [
-                              _sectionTitle('Physician Assessment & Remarks', isDark),
-                              const Spacer(),
+                              Expanded(
+                                child: _sectionTitle('Physician Assessment & Remarks', isDark),
+                              ),
+                              const SizedBox(width: 8),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                 decoration: BoxDecoration(
@@ -560,7 +637,46 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 8),
+                          // Quick Recommendation Autofill Preset Chips
+                          if (!_isFinalized) ...[
+                            SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              physics: const BouncingScrollPhysics(),
+                              child: Row(
+                                children: [
+                                  _presetChip(
+                                    label: '✨ Clean Review (6m)',
+                                    text: 'Clinical impression consistent with ${widget.record.className}. Vitals within physiological limits. Routine review in 6 months.',
+                                    isDark: isDark,
+                                    color: const Color(0xFF2ECC71),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  _presetChip(
+                                    label: '⚠️ 14-Day Follow-Up',
+                                    text: 'Clinical impression consistent with ${widget.record.className}. Dietary modifications advised. Follow-up recommended within 14 business days.',
+                                    isDark: isDark,
+                                    color: const Color(0xFFF39C12),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  _presetChip(
+                                    label: '🚨 Urgent Referral (24-48h)',
+                                    text: 'Abnormal high-risk profile for ${widget.record.className}. Prompt clinician review and confirmatory diagnostic workup recommended within 24-48 hours.',
+                                    isDark: isDark,
+                                    color: const Color(0xFFFF5252),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  _presetChip(
+                                    label: '📋 Multi-Modality Labs',
+                                    text: 'Correlate ${widget.record.className} findings with standard diagnostic lab panels. Repeat fasting readings in 30 days.',
+                                    isDark: isDark,
+                                    color: const Color(0xFF667EEA),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                          ],
                           TextField(
                             controller: _notesCtrl,
                             enabled: !_isFinalized,
@@ -638,6 +754,47 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _presetChip({
+    required String label,
+    required String text,
+    required bool isDark,
+    required Color color,
+  }) {
+    final isSelected = _notesCtrl.text.trim() == text.trim();
+
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _notesCtrl.text = text;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✨ Applied template: $label'),
+            backgroundColor: color,
+            duration: const Duration(milliseconds: 1500),
+          ),
+        );
+      },
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: isSelected ? color : color.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withOpacity(0.4)),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: isSelected ? Colors.white : color,
           ),
         ),
       ),
