@@ -13,7 +13,8 @@ A goal-driven orchestration over the MedicoScope tool surface. It:
 Design guarantees that keep it demo-safe:
   - The LLM is used for *planning/explanation only*; it NEVER decides safety
     (that's the deterministic Aegis gate) and NEVER executes actions.
-  - If ANTHROPIC_API_KEY is missing or the call fails, a DETERMINISTIC planner
+  - The planner uses Groq/Llama (GROQ_API_KEY). If it is missing or the call
+    fails, a DETERMINISTIC keyword planner
     runs instead — the consult always completes, never hard-breaks a demo.
 """
 import os
@@ -25,9 +26,25 @@ import httpx
 from pydantic import BaseModel
 
 # ── Config ────────────────────────────────────────────────────────────────────
-NODE_API = os.getenv("BACKEND_URL", "https://medicoscope-server.onrender.com/api")
-ANTHROPIC_KEY = os.getenv("ANTHROPIC_API_KEY")
-ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6")
+NODE_API = os.getenv("BACKEND_URL", "https://medicoscope-api-lbto.onrender.com/api")
+
+# The agent's PLANNER uses Groq/Llama (same provider as the rest of the app).
+# It only refines triage/planning — it NEVER decides safety (that's the
+# deterministic Aegis gate) and never executes actions. If Groq is unavailable
+# the deterministic keyword planner runs instead, so the consult never breaks.
+GROQ_KEY = os.getenv("GROQ_API_KEY")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+
+_groq_client = None
+def _groq():
+    global _groq_client
+    if _groq_client is None and GROQ_KEY:
+        try:
+            from groq import Groq
+            _groq_client = Groq(api_key=GROQ_KEY)
+        except Exception:
+            _groq_client = None
+    return _groq_client
 
 # Suspected-disease keyword triage (deterministic baseline; LLM refines if available).
 TRIAGE_KEYWORDS = {
@@ -75,6 +92,50 @@ def _triage(complaint: str) -> dict:
         "suspected": [d for d, _ in suspected] or ["anemia"],  # default a cheap path
         "acuity": acuity,
     }
+
+
+def _llm_triage(complaint: str) -> dict:
+    """LLM-driven triage (Groq/Llama). Refines the deterministic baseline with
+    real language understanding, but is constrained to the 3 supported diseases
+    and always falls back to the keyword triage on any failure. Returns the
+    same shape as _triage, plus a short `reasoning` string for the trace."""
+    base = _triage(complaint)
+    client = _groq()
+    if not client or not (complaint or "").strip():
+        return base
+    try:
+        prompt = (
+            "You are the triage step of a screening agent. From the patient's "
+            "words, pick which of EXACTLY these conditions to screen for: "
+            "diabetes, hypertension, anemia. Also rate acuity as 'routine' or "
+            "'emergency'. Reply ONLY as compact JSON: "
+            '{"suspected":["..."],"acuity":"...","reasoning":"one short sentence"}.\n'
+            f'Patient: "{complaint}"'
+        )
+        resp = client.chat.completions.create(
+            model=GROQ_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.2,
+            max_tokens=160,
+            response_format={"type": "json_object"},
+        )
+        data = json.loads(resp.choices[0].message.content)
+        allowed = {"diabetes", "hypertension", "anemia"}
+        suspected = [d for d in data.get("suspected", []) if d in allowed]
+        if not suspected:
+            suspected = base["suspected"]
+        # Acuity: take the MORE severe of LLM vs deterministic (fail toward care).
+        acuity = "emergency" if (
+            data.get("acuity") == "emergency" or base["acuity"] == "emergency"
+        ) else "routine"
+        return {
+            "suspected": suspected,
+            "acuity": acuity,
+            "reasoning": str(data.get("reasoning", ""))[:240],
+            "planner": "llm",
+        }
+    except Exception:
+        return base
 
 
 def _plan(suspected: list[str]) -> list[dict]:
@@ -175,7 +236,7 @@ async def run_consult(req: ConsultRequest) -> AsyncGenerator[str, None]:
     """Yields SSE events for the live decision-trace."""
     yield _sse("consult_start", {"patient": req.patient_name, "complaint": req.complaint})
 
-    triage = _triage(req.complaint)
+    triage = _llm_triage(req.complaint)
     yield _sse("triage_result", triage)
 
     plan = _plan(triage["suspected"])
@@ -204,6 +265,7 @@ async def run_consult(req: ConsultRequest) -> AsyncGenerator[str, None]:
                 "index": i, "tool": tool_id,
                 "fidelity": result.get("fidelity"), "risk": result.get("risk"),
                 "confidence": result.get("confidence"), "status": result.get("status"),
+                "error": result.get("error"),
             })
 
         # Fuse + contradiction check (re-plan a tiebreaker if needed)

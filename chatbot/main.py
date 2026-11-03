@@ -48,7 +48,7 @@ llm_streaming = ChatGroq(
 )
 
 # ── Config ─────────────────────────────────────────────────────────────────
-BACKEND_URL = os.getenv("BACKEND_URL", "https://medicoscope-server.onrender.com/api")
+BACKEND_URL = os.getenv("BACKEND_URL", "https://medicoscope-api-lbto.onrender.com/api")
 # Shared secret for service-to-service calls (vitals ingest). Must match the
 # Node server's SERVICE_KEY. If unset, the Node side warns and allows.
 SERVICE_KEY = os.getenv("SERVICE_KEY", "")
