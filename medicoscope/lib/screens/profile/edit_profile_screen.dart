@@ -7,6 +7,7 @@ import 'package:medicoscope/core/locale/locale_provider.dart';
 import 'package:medicoscope/core/locale/app_strings.dart';
 import 'package:medicoscope/core/constants/api_constants.dart';
 import 'package:medicoscope/services/api_service.dart';
+import 'package:medicoscope/services/sos_emergency_service.dart';
 import 'package:provider/provider.dart';
 import 'package:medicoscope/core/theme/theme_provider.dart';
 
@@ -77,6 +78,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         _emergencyNameController.text = emergency['name'] ?? '';
         _emergencyPhoneController.text = emergency['phone'] ?? '';
         _emergencyRelationController.text = emergency['relationship'] ?? '';
+        await SosEmergencyService.syncFromProfile(profile);
       } else {
         _specializationController.text = profile['specialization'] ?? '';
         _hospitalController.text = profile['hospital'] ?? '';
@@ -122,11 +124,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (auth.isPatient) {
         body['dateOfBirth'] = _dobController.text.trim();
         body['bloodGroup'] = _bloodGroupController.text.trim();
-        body['emergencyContact'] = {
+                body['emergencyContact'] = {
           'name': _emergencyNameController.text.trim(),
           'phone': _emergencyPhoneController.text.trim(),
           'relationship': _emergencyRelationController.text.trim(),
         };
+        await SosEmergencyService.saveContact(
+          name: _emergencyNameController.text.trim(),
+          phone: _emergencyPhoneController.text.trim(),
+          relationship: _emergencyRelationController.text.trim(),
+          authToken: auth.token,
+        );
       } else {
         body['specialization'] = _specializationController.text.trim();
         body['hospital'] = _hospitalController.text.trim();
@@ -338,9 +346,48 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
                                 const SizedBox(height: AppTheme.spacingLarge),
 
-                                _sectionLabel(
-                                    AppStrings.get('emergency_contact', lang),
-                                    isDark),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.emergency_rounded, color: Color(0xFFFF5252), size: 18),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      AppStrings.get('sos_emergency_contact', lang),
+                                      style: const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFFFF5252),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFF5252).withValues(alpha: 0.08),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: const Color(0xFFFF5252).withValues(alpha: 0.25),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Icon(Icons.info_outline, color: Color(0xFFFF5252), size: 16),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          AppStrings.get('sos_notice', lang),
+                                          style: TextStyle(
+                                            fontSize: 11.5,
+                                            height: 1.3,
+                                            color: isDark ? AppTheme.darkTextLight : AppTheme.textDark,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                                 const SizedBox(height: AppTheme.spacingSmall),
 
                                 _buildField(

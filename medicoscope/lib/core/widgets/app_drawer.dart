@@ -5,6 +5,7 @@ import 'package:medicoscope/core/locale/locale_provider.dart';
 import 'package:medicoscope/core/locale/app_strings.dart';
 import 'package:medicoscope/core/widgets/language_picker.dart';
 import 'package:medicoscope/screens/profile/profile_screen.dart';
+import 'package:medicoscope/services/ambulance_service.dart';
 import 'package:medicoscope/screens/linking/my_code_screen.dart';
 import 'package:medicoscope/screens/linking/link_doctor_screen.dart';
 import 'package:medicoscope/screens/patients/patient_list_screen.dart';
@@ -53,192 +54,226 @@ class AppDrawer extends StatelessWidget {
       backgroundColor:
           isDark ? AppTheme.darkBackground : AppTheme.backgroundLight,
       child: SafeArea(
-        child: Column(
-          children: [
-            // Header
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(AppTheme.spacingLarge),
-              decoration: BoxDecoration(
-                gradient: AppTheme.orangeGradient,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Avatar
-                  CircleAvatar(
-                    radius: 32,
-                    backgroundColor: Colors.white.withOpacity(0.2),
-                    child: Text(
-                      user?.name.isNotEmpty == true
-                          ? user!.name[0].toUpperCase()
-                          : '?',
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(AppTheme.spacingLarge),
+                decoration: BoxDecoration(
+                  gradient: AppTheme.orangeGradient,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Avatar
+                    CircleAvatar(
+                      radius: 32,
+                      backgroundColor: Colors.white.withValues(alpha: 0.2),
+                      child: Text(
+                        user?.name.isNotEmpty == true
+                            ? user!.name[0].toUpperCase()
+                            : '?',
+                        style: const TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: AppTheme.spacingMedium),
+                    Text(
+                      user?.name ?? AppStrings.get('user', lang),
                       style: const TextStyle(
-                        fontSize: 28,
+                        fontSize: 18,
                         fontWeight: FontWeight.w700,
                         color: Colors.white,
                       ),
                     ),
-                  ),
-                  const SizedBox(height: AppTheme.spacingMedium),
-                  Text(
-                    user?.name ?? AppStrings.get('user', lang),
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    user?.email ?? '',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.white.withOpacity(0.85),
-                    ),
-                  ),
-                  const SizedBox(height: AppTheme.spacingSmall),
-                  // Role badge
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      authProvider.isAdmin
-                          ? 'Admin'
-                          : authProvider.isPatient
-                              ? AppStrings.get('patient', lang)
-                              : AppStrings.get('doctor', lang),
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
+                    const SizedBox(height: 2),
+                    Text(
+                      user?.email ?? '',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.white.withValues(alpha: 0.85),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: AppTheme.spacingSmall),
-
-            // Menu items
-            _buildMenuItem(
-              context,
-              icon: Icons.person_outlined,
-              title: AppStrings.get('profile', lang),
-              onTap: () => _navigateTo(context, const ProfileScreen()),
-            ),
-
-            _buildMenuItem(
-              context,
-              icon: Icons.qr_code,
-              title: AppStrings.get('my_code', lang),
-              subtitle: user?.uniqueCode ?? '',
-              onTap: () => _navigateTo(context, const MyCodeScreen()),
-            ),
-
-            if (authProvider.isPatient)
-              _buildMenuItem(
-                context,
-                icon: Icons.link,
-                title: AppStrings.get('link_to_doctor', lang),
-                onTap: () => _navigateTo(context, const LinkDoctorScreen()),
-              ),
-
-            if (authProvider.isDoctor)
-              _buildMenuItem(
-                context,
-                icon: Icons.people_outlined,
-                title: AppStrings.get('my_patients', lang),
-                onTap: () => _navigateTo(context, const PatientListScreen()),
-              ),
-
-            const Divider(height: 32),
-
-            // History section
-            Padding(
-              padding: const EdgeInsets.only(left: 16, bottom: 4),
-              child: Text(
-                'History',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: isDark ? AppTheme.darkTextDim : AppTheme.textLight,
-                  letterSpacing: 1,
-                ),
-              ),
-            ),
-
-            _buildMenuItem(
-              context,
-              icon: Icons.chat_outlined,
-              title: 'Chat History',
-              onTap: () => _navigateTo(context, const ChatHistoryScreen()),
-            ),
-
-            if (authProvider.isPatient)
-              _buildMenuItem(
-                context,
-                icon: Icons.spa_outlined,
-                title: 'MindSpace History',
-                onTap: () =>
-                    _navigateTo(context, const MindSpaceHistoryScreen()),
-              ),
-
-            if (authProvider.isPatient)
-              _buildMenuItem(
-                context,
-                icon: Icons.card_giftcard_outlined,
-                title: 'My Rewards',
-                onTap: () =>
-                    _navigateTo(context, const ClaimedRewardsScreen()),
-              ),
-
-            const Divider(height: 32),
-
-            // Language picker
-            const LanguagePicker(),
-
-            const Divider(height: 32),
-
-            // Logout
-            _buildMenuItem(
-              context,
-              icon: Icons.logout,
-              title: AppStrings.get('logout', lang),
-              isDestructive: true,
-              onTap: () async {
-                Navigator.of(context).pop(); // Close drawer
-                await authProvider.logout();
-                if (context.mounted) {
-                  Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(
-                      builder: (_) => const WelcomeScreen(),
+                    const SizedBox(height: AppTheme.spacingSmall),
+                    // Role badge
+                    Container(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        authProvider.isAdmin
+                            ? 'Admin'
+                            : authProvider.isPatient
+                                ? AppStrings.get('patient', lang)
+                                : AppStrings.get('doctor', lang),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
-                    (route) => false,
-                  );
-                }
-              },
-            ),
-
-            const Spacer(),
-
-            // Version
-            Padding(
-              padding: const EdgeInsets.all(AppTheme.spacingMedium),
-              child: Text(
-                AppStrings.get('version', lang),
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isDark ? AppTheme.darkTextDim : AppTheme.textLight,
+                  ],
                 ),
               ),
-            ),
-          ],
+
+              const SizedBox(height: AppTheme.spacingSmall),
+
+              // Menu items
+              _buildMenuItem(
+                context,
+                icon: Icons.person_outlined,
+                title: AppStrings.get('profile', lang),
+                onTap: () => _navigateTo(context, const ProfileScreen()),
+              ),
+
+              _buildMenuItem(
+                context,
+                icon: Icons.qr_code,
+                title: AppStrings.get('my_code', lang),
+                subtitle: user?.uniqueCode ?? '',
+                onTap: () => _navigateTo(context, const MyCodeScreen()),
+              ),
+
+              if (authProvider.isPatient)
+                _buildMenuItem(
+                  context,
+                  icon: Icons.link,
+                  title: AppStrings.get('link_to_doctor', lang),
+                  onTap: () => _navigateTo(context, const LinkDoctorScreen()),
+                ),
+
+              if (authProvider.isPatient)
+                _buildMenuItem(
+                  context,
+                  icon: Icons.emergency_rounded,
+                  title: AppStrings.get('sos_emergency_contact', lang),
+                  onTap: () => _navigateTo(context, const ProfileScreen()),
+                ),
+
+              if (authProvider.isPatient)
+                _buildMenuItem(
+                  context,
+                  icon: Icons.airport_shuttle_rounded,
+                  title: 'Emergency Ambulance (Simulation)',
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    AmbulanceService.triggerCriticalAlertCountdown(
+                      context: context,
+                      alertHeadline: 'Manual Emergency Dispatch Requested',
+                      alertSeverity: 'CRITICAL',
+                      patientName: user?.name ?? 'Patient',
+                      details: 'Patient requested immediate emergency response.',
+                    );
+                  },
+                ),
+
+              if (authProvider.isDoctor)
+                _buildMenuItem(
+                  context,
+                  icon: Icons.people_outlined,
+                  title: AppStrings.get('my_patients', lang),
+                  onTap: () => _navigateTo(context, const PatientListScreen()),
+                ),
+
+              const Divider(height: 32),
+
+              // History section
+              Padding(
+                padding: const EdgeInsets.only(left: 16, bottom: 4),
+                child: Text(
+                  'History',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? AppTheme.darkTextDim : AppTheme.textLight,
+                    letterSpacing: 1,
+                  ),
+                ),
+              ),
+
+              _buildMenuItem(
+                context,
+                icon: Icons.chat_outlined,
+                title: 'Chat History',
+                onTap: () => _navigateTo(context, const ChatHistoryScreen()),
+              ),
+
+              if (authProvider.isPatient)
+                _buildMenuItem(
+                  context,
+                  icon: Icons.spa_outlined,
+                  title: 'MindSpace History',
+                  onTap: () =>
+                      _navigateTo(context, const MindSpaceHistoryScreen()),
+                ),
+
+              if (authProvider.isPatient)
+                _buildMenuItem(
+                  context,
+                  icon: Icons.card_giftcard_outlined,
+                  title: 'My Rewards',
+                  onTap: () =>
+                      _navigateTo(context, const ClaimedRewardsScreen()),
+                ),
+
+              const Divider(height: 32),
+
+              // Language picker
+              const LanguagePicker(),
+
+              const Divider(height: 32),
+
+              // Logout
+              _buildMenuItem(
+                context,
+                icon: Icons.logout,
+                title: AppStrings.get('logout', lang),
+                isDestructive: true,
+                onTap: () async {
+                  Navigator.of(context).pop(); // Close drawer
+                  await authProvider.logout();
+                  if (context.mounted) {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(
+                        builder: (_) => const WelcomeScreen(),
+                      ),
+                      (route) => false,
+                    );
+                  }
+                },
+              ),
+
+              const SizedBox(height: AppTheme.spacingMedium),
+
+              // Version
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.only(
+                    bottom: AppTheme.spacingLarge,
+                    top: AppTheme.spacingSmall,
+                  ),
+                  child: Text(
+                    AppStrings.get('version', lang),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? AppTheme.darkTextDim : AppTheme.textLight,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
