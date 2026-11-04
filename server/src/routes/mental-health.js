@@ -8,6 +8,34 @@ const router = express.Router();
 // Map a mental-health urgency to a risk level the Aegis gate understands.
 const URGENCY_TO_RISK = { low: 'low', moderate: 'moderate', high: 'critical' };
 
+function deriveModality(source = '', report = '', transcript = '') {
+  const combined = `${source} ${report} ${transcript}`.toLowerCase();
+  if (source === 'appointment_request' || combined.includes('appointment request')) return 'appointment';
+  if (combined.includes('skin') || combined.includes('melanoma') || combined.includes('carcinoma')) return 'skin_cancer';
+  if (combined.includes('heart') || combined.includes('cardio') || combined.includes('auscultation') || combined.includes('murmur') || combined.includes('arrhythmia')) return 'cardiac';
+  if (combined.includes('anemia') || combined.includes('pallor') || combined.includes('hemoglobin') || combined.includes('conjunctival')) return 'anemia';
+  if (combined.includes('respiratory') || combined.includes('lung') || combined.includes('wheez') || combined.includes('crackles')) return 'respiratory';
+  if (combined.includes('retin') || combined.includes('fundus') || combined.includes('macular')) return 'retinopathy';
+  if (combined.includes('vital') || combined.includes('blood pressure') || combined.includes('spo2') || combined.includes('heart rate')) return 'vitals';
+  if (combined.includes('mindspace') || combined.includes('phq') || combined.includes('voice biomarker')) return 'mindspace';
+  return 'general';
+}
+
+function formatReadableDate(d) {
+  if (!d) return '';
+  const dt = new Date(d);
+  if (isNaN(dt.getTime())) return String(d);
+  return dt.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
+  });
+}
+
 // POST /api/mental-health/notifications - save notification.
 // Auth REQUIRED: the chatbot forwards the signed-in user's bearer token (see
 // chatbot/main.py). Without this, any unauthenticated caller could drive the
@@ -15,7 +43,7 @@ const URGENCY_TO_RISK = { low: 'low', moderate: 'moderate', high: 'critical' };
 // pairs. Identity is bound below so a patient can only file for themselves.
 router.post('/notifications', auth, async (req, res) => {
   try {
-    const { doctorId, patientId, patientName, clinicalReport, urgency, transcript, source,
+    const { doctorId, patientId, patientName, clinicalReport, urgency, transcript, source, modality,
             latitude, longitude, locationLabel, mapsUrl,
             voiceMarkerScore, voiceMarkerHeadline } = req.body;
 
@@ -41,6 +69,7 @@ router.post('/notifications', auth, async (req, res) => {
       urgency: urgency || 'low',
       transcript: transcript || '',
       source: source || 'mindspace',
+      modality: modality || deriveModality(source, clinicalReport, transcript),
       latitude: lat,
       longitude: lng,
       locationLabel: locationLabel || '',
@@ -103,6 +132,7 @@ router.get('/notifications/:doctorId', auth, async (req, res) => {
       urgency: n.urgency,
       transcript: n.transcript,
       source: n.source,
+      modality: n.modality || deriveModality(n.source, n.clinicalReport, n.transcript),
       latitude: n.latitude ?? null,
       longitude: n.longitude ?? null,
       location: n.locationLabel || '',
@@ -111,6 +141,9 @@ router.get('/notifications/:doctorId', auth, async (req, res) => {
       voice_marker_headline: n.voiceMarkerHeadline || '',
       read: n.read,
       created_at: n.createdAt.toISOString(),
+      timestamp: n.createdAt.toISOString(),
+      raw_timestamp: n.createdAt.getTime(),
+      formatted_timestamp: formatReadableDate(n.createdAt),
     }));
 
     res.json({ notifications: mapped });

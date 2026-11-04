@@ -19,11 +19,13 @@ const mentalHealthNotificationSchema = new mongoose.Schema({
   // What raised this notification: 'mindspace' | 'disease_alert' | 'appointment_request'.
   // Lets the doctor UI categorise and the disease-alert client de-dupe by source.
   source: { type: String, default: 'mindspace' },
+  modality: { type: String, default: 'general' },
   // Patient-side acknowledgement (e.g. saw the doctor's appointment response).
   // Distinct from `read`, which is the doctor's read-state.
   patientAcknowledged: { type: Boolean, default: false },
 }, { timestamps: true });
 
 mentalHealthNotificationSchema.index({ doctorId: 1, createdAt: -1 });
+mentalHealthNotificationSchema.index({ doctorId: 1, modality: 1, createdAt: -1 });
 
 module.exports = mongoose.model('MentalHealthNotification', mentalHealthNotificationSchema);
