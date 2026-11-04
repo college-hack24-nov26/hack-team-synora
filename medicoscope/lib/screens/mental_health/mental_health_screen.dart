@@ -8,6 +8,8 @@ import 'package:medicoscope/core/providers/auth_provider.dart';
 import 'package:medicoscope/core/providers/coins_provider.dart';
 import 'package:medicoscope/core/widgets/glass_card.dart';
 import 'package:medicoscope/services/mental_health_service.dart';
+import 'package:medicoscope/services/sos_emergency_service.dart';
+import 'package:medicoscope/services/ambulance_service.dart';
 import 'package:medicoscope/services/voice_biomarker_analyzer.dart';
 import 'package:medicoscope/services/voice_calibration_store.dart';
 import 'package:medicoscope/services/voice_signal.dart';
@@ -324,6 +326,31 @@ class _MentalHealthScreenState extends State<MentalHealthScreen>
           doctorId: _linkedDoctorId.isNotEmpty ? _linkedDoctorId : null,
           voiceMarkerScore: _voiceMarkers?.markerScore,
         );
+      }
+
+      // If high urgency / crisis detected, dispatch SOS SMS to emergency contact with GPS
+      final urgency = result['urgency'] as String? ?? 'low';
+      if (urgency.toLowerCase() == 'high') {
+        try {
+          await SosEmergencyService.sendAlertSms(
+            alertType: 'mindspace_crisis',
+            patientName: user?.name ?? 'Patient',
+            severity: 'CRITICAL',
+            headline: 'High urgency detected during MindSpace mental health check-in',
+            details: 'Crisis indicator identified. Urgent support recommended.',
+          );
+        } catch (_) {}
+
+        if (mounted) {
+          AmbulanceService.triggerCriticalAlertCountdown(
+            context: context,
+            alertHeadline: 'High Urgency / Crisis Detected during MindSpace Check-In',
+            alertSeverity: 'CRITICAL',
+            patientName: user?.name ?? 'Patient',
+            patientId: user?.id,
+            details: 'Crisis indicator identified. Urgent medical evaluation recommended.',
+          );
+        }
       }
     } catch (e) {
       _hourglassController.stop();

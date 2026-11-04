@@ -9,6 +9,8 @@ import 'package:medicoscope/core/widgets/glass_card.dart';
 import 'package:medicoscope/services/cardio_service.dart';
 import 'package:medicoscope/services/detection_service.dart';
 import 'package:medicoscope/screens/heart/heart_results_screen.dart';
+import 'package:medicoscope/services/disease_alert_service.dart';
+import 'package:medicoscope/services/disease_result_pipeline.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:medicoscope/core/theme/theme_provider.dart';
@@ -165,6 +167,24 @@ class _HeartMonitoringScreenState extends State<HeartMonitoringScreen>
           patientId: widget.patientId,
         );
       }
+
+      final sev = result.severity.toUpperCase();
+      if ((sev == 'HIGH' || sev == 'CRITICAL') && authProvider.user != null) {
+        final doctorId = await DiseaseResultPipeline.resolveDoctorIdFor(token);
+        await DiseaseAlertService.sendGenericAlert(
+          doctorId: doctorId ?? '',
+          patientId: authProvider.user!.id,
+          patientName: authProvider.user!.name,
+          clinicalReport:
+              'Heart auscultation alert: ${result.prediction} (${result.severity}). '
+              'Avg HR: ${result.avgHeartRate.toStringAsFixed(1)} BPM.\n'
+              '${result.recommendation}',
+          urgency: sev == 'CRITICAL' ? 'critical' : 'high',
+          source: 'cardiac_auscultation',
+          authToken: token,
+        );
+      }
+
 
       setState(() => _isProcessing = false);
 

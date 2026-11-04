@@ -8,6 +8,8 @@ import 'package:medicoscope/core/providers/coins_provider.dart';
 import 'package:medicoscope/models/disease_risk_result.dart';
 import 'package:medicoscope/services/api_service.dart';
 import 'package:medicoscope/services/disease_alert_service.dart';
+import 'package:medicoscope/main.dart';
+import 'package:medicoscope/services/ambulance_service.dart';
 import 'package:medicoscope/services/disease_risk_store.dart';
 
 /// One-line helper every disease method screen calls after analysis.
@@ -82,6 +84,25 @@ class DiseaseResultPipeline {
       doctorId: doctorId,
       authToken: auth.token,
     );
+
+    // If screening risk is critical, trigger the 5-second ambulance booking popup
+    if (result.risk == RiskLevel.high || result.risk == RiskLevel.critical) {
+      final navCtx = appNavigatorKey.currentContext;
+      if (navCtx != null) {
+
+        AmbulanceService.triggerCriticalAlertCountdown(
+          context: navCtx,
+          alertHeadline: '${DiseaseRegistry.of(result.disease).title}: ${result.headline}',
+          alertSeverity: result.risk == RiskLevel.critical ? 'CRITICAL' : 'HIGH',
+          patientName: patientName,
+          patientId: patientId,
+          details: result.findings.isNotEmpty
+              ? result.findings.take(2).map((f) => '${f.name}: ${f.value} ${f.unit}').join(', ')
+              : '',
+          countdownSeconds: 10,
+        );
+      }
+    }
   }
 
   /// Legacy flows (skin scan, heart sound, OG vitals session) use this to
