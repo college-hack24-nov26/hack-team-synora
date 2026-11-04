@@ -13,7 +13,9 @@ import 'package:medicoscope/core/locale/locale_provider.dart';
 import 'package:medicoscope/core/locale/app_strings.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:medicoscope/services/sos_emergency_service.dart';
+import 'package:medicoscope/services/ambulance_service.dart';
+import 'package:medicoscope/services/location_service.dart';
 
 class VitalsScreen extends StatefulWidget {
   const VitalsScreen({super.key});
@@ -89,11 +91,27 @@ class _VitalsScreenState extends State<VitalsScreen>
         _linkedDoctorId =
             doctorRes['doctor']['_id'] ?? doctorRes['doctor']['id'] ?? '';
       }
-      if (profileRes['patient'] != null) {
-        final ec = profileRes['patient']['emergencyContact'];
+      final localContact = await SosEmergencyService.getContact();
+      if (localContact.isValid) {
+        _emergencyContactName = localContact.name;
+        _emergencyContactPhone = localContact.phone;
+      }
+      final profileMap = (profileRes['profile'] ?? profileRes['patient']) as Map<String, dynamic>?;
+      if (profileMap != null) {
+        final ec = profileMap['emergencyContact'] as Map<String, dynamic>?;
         if (ec != null) {
-          _emergencyContactName = ec['name'] ?? '';
-          _emergencyContactPhone = ec['phone'] ?? '';
+          final pName = (ec['name'] as String?)?.trim() ?? '';
+          final pPhone = (ec['phone'] as String?)?.trim() ?? '';
+          final pRel = (ec['relationship'] as String?)?.trim() ?? '';
+          if (pPhone.isNotEmpty) {
+            _emergencyContactName = pName;
+            _emergencyContactPhone = pPhone;
+            await SosEmergencyService.saveContact(
+              name: pName,
+              phone: pPhone,
+              relationship: pRel,
+            );
+          }
         }
       }
     } catch (_) {}
@@ -168,34 +186,51 @@ class _VitalsScreenState extends State<VitalsScreen>
     for (final alert in newAlerts) {
       // Only send SMS once per alert type per session
       if (_smsTriggeredTypes.contains(alert.type)) continue;
-      if (alert.emergencyContactPhone.isEmpty) continue;
 
       _smsTriggeredTypes.add(alert.type);
       _sendEmergencySms(alert);
+
+      final sev = alert.severity.toLowerCase();
+      // Trigger 5-second countdown for critical or high vitals breach to book ambulance
+      if ((sev == 'critical' || sev == 'high') && mounted) {
+        // STOP background vitals monitoring immediately so alerts do not loop and spam
+        final vitals = Provider.of<VitalsProvider>(context, listen: false);
+        if (vitals.isMonitoring) {
+          final auth = Provider.of<AuthProvider>(context, listen: false);
+          vitals.stopMonitoring(token: auth.token);
+        }
+
+        AmbulanceService.triggerCriticalAlertCountdown(
+          context: context,
+          alertHeadline: alert.message,
+          alertSeverity: alert.severity.toUpperCase(),
+          patientName: alert.patientName,
+          details: 'Vitals threshold breached during live monitoring (${alert.currentValue.toStringAsFixed(1)}). Immediate evaluation advised.',
+        );
+        break;
+      }
     }
   }
 
   Future<void> _sendEmergencySms(VitalAlert alert) async {
-    final mapsLink = (_latitude != 0.0 && _longitude != 0.0)
-        ? 'https://www.google.com/maps?q=$_latitude,$_longitude'
-        : 'Location unavailable';
-
-    final body = Uri.encodeComponent(
-      'MEDICOSCOPE ALERT\n'
-      'Patient: ${alert.patientName}\n'
-      'Alert: ${alert.message}\n'
-      'Severity: ${alert.severity.toUpperCase()}\n'
-      'Time: ${alert.timestamp}\n'
-      'Location: $_locationName\n'
-      'Map: $mapsLink',
+    final fix = LocationFix(
+      latitude: _latitude != 0.0 ? _latitude : null,
+      longitude: _longitude != 0.0 ? _longitude : null,
+      label: _locationName,
+      mapsUrl: (_latitude != 0.0 && _longitude != 0.0)
+          ? 'https://www.google.com/maps?q=$_latitude,$_longitude'
+          : '',
     );
 
-    final smsUri = Uri.parse('sms:${alert.emergencyContactPhone}?body=$body');
-
-    try {
-      await launchUrl(smsUri);
-    } catch (_) {}
-  }
+    await SosEmergencyService.sendAlertSms(
+      alertType: 'vitals_${alert.type}',
+      patientName: alert.patientName,
+      severity: alert.severity,
+      headline: alert.message,
+      details: 'Vital threshold breach detected during active monitoring (${alert.currentValue.toStringAsFixed(1)}).',
+      locationFix: fix,
+    );
+   }
 
   @override
   void dispose() {
