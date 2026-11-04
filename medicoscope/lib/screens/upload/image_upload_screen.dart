@@ -13,6 +13,8 @@ import 'package:medicoscope/services/detection_service.dart';
 import 'package:medicoscope/services/disease_alert_service.dart';
 import 'package:medicoscope/services/disease_result_pipeline.dart';
 import 'package:medicoscope/screens/results/detection_results_screen.dart';
+import 'package:medicoscope/main.dart';
+import 'package:medicoscope/services/ambulance_service.dart';
 import 'package:medicoscope/core/providers/auth_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:medicoscope/core/theme/theme_provider.dart';
@@ -106,29 +108,39 @@ class _ImageUploadScreenState extends State<ImageUploadScreen> {
             );
           }
 
-          // Fire a doctor alert for high-confidence malignant findings.
+          // Fire a doctor alert and emergency ambulance for skin cancer findings.
           final lowerName = result.className.toLowerCase();
-          final isMalignant = lowerName.contains('melanoma') ||
-              lowerName.contains('carcinoma') ||
-              lowerName.contains('cancer') ||
-              (lowerName.contains('actinic') && result.confidence > 0.6);
-          if (isMalignant &&
-              result.confidence > 0.5 &&
-              authProvider.user != null) {
-            final doctorId = await DiseaseResultPipeline.resolveDoctorIdFor(
-                authProvider.token);
-            if (doctorId != null && doctorId.isNotEmpty) {
-              await DiseaseAlertService.sendGenericAlert(
-                doctorId: doctorId,
-                patientId: authProvider.user!.id,
+          final isMalignant = lowerName.contains("melanoma") ||
+              lowerName.contains("carcinoma") ||
+              lowerName.contains("cancer") ||
+              lowerName.contains("malignant") ||
+              (lowerName.contains("actinic") && result.confidence > 0.4);
+          if (isMalignant && authProvider.user != null) {
+            final doctorId = await DiseaseResultPipeline.resolveDoctorIdFor(authProvider.token);
+            await DiseaseAlertService.sendGenericAlert(
+              doctorId: doctorId ?? "",
+              patientId: authProvider.user!.id,
+              patientName: authProvider.user!.name,
+              clinicalReport:
+                  'Skin cancer lesion scan: ${result.className} '
+                  '(${(result.confidence * 100).toStringAsFixed(1)}% confidence).\n'
+                  '${result.description}',
+              urgency: "high",
+              source: "skin_scan",
+              authToken: authProvider.token,
+            );
+
+            // Immediately trigger emergency ambulance countdown with 10-second timer for skin cancer
+            final navCtx = appNavigatorKey.currentContext ?? context;
+            if (navCtx.mounted) {
+              AmbulanceService.triggerCriticalAlertCountdown(
+                context: navCtx,
+                alertHeadline: "Skin Cancer Detected: ${result.className}",
+                alertSeverity: "CRITICAL",
                 patientName: authProvider.user!.name,
-                clinicalReport:
-                    'Skin lesion scan: ${result.className} '
-                    '(${(result.confidence * 100).toStringAsFixed(1)}% confidence).\n'
-                    '${result.description}',
-                urgency: result.confidence > 0.75 ? 'high' : 'moderate',
-                source: 'skin_scan',
-                authToken: authProvider.token,
+                patientId: authProvider.user!.id,
+                details: "${result.className} detected with ${(result.confidence * 100).toStringAsFixed(1)}% confidence.",
+                countdownSeconds: 10,
               );
             }
           }
